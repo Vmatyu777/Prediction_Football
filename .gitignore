@@ -19,7 +19,7 @@ data/interim/
 data/processed/
 
 # Trained models and temporary artifacts
-models/
+/models/
 *.joblib
 *.pkl
 *.cbm

@@ -8,7 +8,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.append(str(PROJECT_ROOT))
 
-from src.features.feature_registry import TARGET_COLUMNS, V1_FEATURES  # noqa: E402
+from src.features.feature_registry import TARGET_COLUMNS, V1_FEATURES, V2_FEATURES  # noqa: E402
 
 
 RAW_DIR = PROJECT_ROOT / "data" / "raw"
@@ -17,8 +17,10 @@ REPORTS_DIR = PROJECT_ROOT / "reports" / "tables"
 
 RAW_MATCHES_PATH = RAW_DIR / "Matches.csv"
 CLEAN_INPUT_PATH = INTERIM_DIR / "matches_top5_2018_2025_clean.csv"
-FEATURE_OUTPUT_PATH = INTERIM_DIR / "matches_features_v1.csv"
-FEATURE_REPORT_PATH = REPORTS_DIR / "features_v1_report.csv"
+FEATURE_V1_OUTPUT_PATH = INTERIM_DIR / "matches_features_v1.csv"
+FEATURE_V2_OUTPUT_PATH = INTERIM_DIR / "matches_features_v2.csv"
+FEATURE_V1_REPORT_PATH = REPORTS_DIR / "features_v1_report.csv"
+FEATURE_V2_REPORT_PATH = REPORTS_DIR / "features_v2_report.csv"
 
 CORNERS_OVER_THRESHOLD = 9.5
 YELLOW_CARDS_OVER_THRESHOLD = 3.5
@@ -60,6 +62,12 @@ def add_rolling_features(matches: pd.DataFrame, history: pd.DataFrame) -> pd.Dat
             "GoalsFor": history["FTHome"],
             "GoalsAgainst": history["FTAway"],
             "Points": history["FTResult"].map({"H": 3, "D": 1, "A": 0}),
+            "IsBTTS": ((history["FTHome"] > 0) & (history["FTAway"] > 0)).astype(int),
+            "IsOver25": ((history["FTHome"] + history["FTAway"]) > 2.5).astype(int),
+            "CornersFor": history["HomeCorners"],
+            "CornersAgainst": history["AwayCorners"],
+            "YellowCardsFor": history["HomeYellow"],
+            "YellowCardsAgainst": history["AwayYellow"],
         }
     )
     away_records = pd.DataFrame(
@@ -72,6 +80,12 @@ def add_rolling_features(matches: pd.DataFrame, history: pd.DataFrame) -> pd.Dat
             "GoalsFor": history["FTAway"],
             "GoalsAgainst": history["FTHome"],
             "Points": history["FTResult"].map({"H": 0, "D": 1, "A": 3}),
+            "IsBTTS": ((history["FTHome"] > 0) & (history["FTAway"] > 0)).astype(int),
+            "IsOver25": ((history["FTHome"] + history["FTAway"]) > 2.5).astype(int),
+            "CornersFor": history["AwayCorners"],
+            "CornersAgainst": history["HomeCorners"],
+            "YellowCardsFor": history["AwayYellow"],
+            "YellowCardsAgainst": history["HomeYellow"],
         }
     )
 
@@ -82,7 +96,17 @@ def add_rolling_features(matches: pd.DataFrame, history: pd.DataFrame) -> pd.Dat
 
     grouped = team_history.groupby("Team", group_keys=False)
     team_history["MatchesPlayedBefore"] = grouped.cumcount()
-    for column in ["GoalsFor", "GoalsAgainst", "Points"]:
+    for column in [
+        "GoalsFor",
+        "GoalsAgainst",
+        "Points",
+        "IsBTTS",
+        "IsOver25",
+        "CornersFor",
+        "CornersAgainst",
+        "YellowCardsFor",
+        "YellowCardsAgainst",
+    ]:
         shifted = grouped[column].shift(1)
         team_history[f"Rolling{column}3"] = shifted.groupby(team_history["Team"]).rolling(
             3, min_periods=1
@@ -90,6 +114,13 @@ def add_rolling_features(matches: pd.DataFrame, history: pd.DataFrame) -> pd.Dat
         team_history[f"Rolling{column}5"] = shifted.groupby(team_history["Team"]).rolling(
             5, min_periods=1
         ).mean().reset_index(level=0, drop=True)
+
+    venue_grouped = team_history.groupby(["Team", "MatchSide"], group_keys=False)
+    for column in ["GoalsFor", "GoalsAgainst", "Points"]:
+        shifted = venue_grouped[column].shift(1)
+        team_history[f"VenueRolling{column}5"] = shifted.groupby(
+            [team_history["Team"], team_history["MatchSide"]]
+        ).rolling(5, min_periods=1).mean().reset_index(level=[0, 1], drop=True)
 
     rolling_columns = [
         "MatchKey",
@@ -99,6 +130,15 @@ def add_rolling_features(matches: pd.DataFrame, history: pd.DataFrame) -> pd.Dat
         "RollingGoalsAgainst5",
         "RollingPoints3",
         "RollingPoints5",
+        "RollingIsBTTS5",
+        "RollingIsOver255",
+        "RollingCornersFor5",
+        "RollingCornersAgainst5",
+        "RollingYellowCardsFor5",
+        "RollingYellowCardsAgainst5",
+        "VenueRollingGoalsFor5",
+        "VenueRollingGoalsAgainst5",
+        "VenueRollingPoints5",
     ]
     home_rolling = team_history.loc[team_history["MatchSide"] == "Home", rolling_columns].rename(
         columns={
@@ -107,6 +147,15 @@ def add_rolling_features(matches: pd.DataFrame, history: pd.DataFrame) -> pd.Dat
             "RollingGoalsAgainst5": "HomeRollingGoalsAgainst5",
             "RollingPoints3": "HomeRollingPoints3",
             "RollingPoints5": "HomeRollingPoints5",
+            "RollingIsBTTS5": "HomeRollingBTTSRate5",
+            "RollingIsOver255": "HomeRollingOver25Rate5",
+            "RollingCornersFor5": "HomeRollingCornersFor5",
+            "RollingCornersAgainst5": "HomeRollingCornersAgainst5",
+            "RollingYellowCardsFor5": "HomeRollingYellowCardsFor5",
+            "RollingYellowCardsAgainst5": "HomeRollingYellowCardsAgainst5",
+            "VenueRollingGoalsFor5": "HomeOnlyRollingGoalsFor5",
+            "VenueRollingGoalsAgainst5": "HomeOnlyRollingGoalsAgainst5",
+            "VenueRollingPoints5": "HomeOnlyRollingPoints5",
         }
     )
     away_rolling = team_history.loc[team_history["MatchSide"] == "Away", rolling_columns].rename(
@@ -116,6 +165,15 @@ def add_rolling_features(matches: pd.DataFrame, history: pd.DataFrame) -> pd.Dat
             "RollingGoalsAgainst5": "AwayRollingGoalsAgainst5",
             "RollingPoints3": "AwayRollingPoints3",
             "RollingPoints5": "AwayRollingPoints5",
+            "RollingIsBTTS5": "AwayRollingBTTSRate5",
+            "RollingIsOver255": "AwayRollingOver25Rate5",
+            "RollingCornersFor5": "AwayRollingCornersFor5",
+            "RollingCornersAgainst5": "AwayRollingCornersAgainst5",
+            "RollingYellowCardsFor5": "AwayRollingYellowCardsFor5",
+            "RollingYellowCardsAgainst5": "AwayRollingYellowCardsAgainst5",
+            "VenueRollingGoalsFor5": "AwayOnlyRollingGoalsFor5",
+            "VenueRollingGoalsAgainst5": "AwayOnlyRollingGoalsAgainst5",
+            "VenueRollingPoints5": "AwayOnlyRollingPoints5",
         }
     )
     home_rolling = home_rolling.drop(columns=["MatchSide"])
@@ -134,6 +192,24 @@ def add_rolling_features(matches: pd.DataFrame, history: pd.DataFrame) -> pd.Dat
         "HomeRollingPoints5",
         "AwayRollingPoints3",
         "AwayRollingPoints5",
+        "HomeRollingBTTSRate5",
+        "AwayRollingBTTSRate5",
+        "HomeRollingOver25Rate5",
+        "AwayRollingOver25Rate5",
+        "HomeRollingCornersFor5",
+        "HomeRollingCornersAgainst5",
+        "AwayRollingCornersFor5",
+        "AwayRollingCornersAgainst5",
+        "HomeRollingYellowCardsFor5",
+        "HomeRollingYellowCardsAgainst5",
+        "AwayRollingYellowCardsFor5",
+        "AwayRollingYellowCardsAgainst5",
+        "HomeOnlyRollingPoints5",
+        "HomeOnlyRollingGoalsFor5",
+        "HomeOnlyRollingGoalsAgainst5",
+        "AwayOnlyRollingPoints5",
+        "AwayOnlyRollingGoalsFor5",
+        "AwayOnlyRollingGoalsAgainst5",
     ]
     base[rolling_fill_columns] = base[rolling_fill_columns].fillna(0)
 
@@ -143,6 +219,25 @@ def add_rolling_features(matches: pd.DataFrame, history: pd.DataFrame) -> pd.Dat
     )
     base["RollingPointsDiff3"] = base["HomeRollingPoints3"] - base["AwayRollingPoints3"]
     base["RollingPointsDiff5"] = base["HomeRollingPoints5"] - base["AwayRollingPoints5"]
+    base["RollingBTTSRateDiff5"] = base["HomeRollingBTTSRate5"] - base["AwayRollingBTTSRate5"]
+    base["RollingOver25RateDiff5"] = base["HomeRollingOver25Rate5"] - base["AwayRollingOver25Rate5"]
+    base["RollingCornersForDiff5"] = base["HomeRollingCornersFor5"] - base["AwayRollingCornersFor5"]
+    base["RollingCornersAgainstDiff5"] = (
+        base["HomeRollingCornersAgainst5"] - base["AwayRollingCornersAgainst5"]
+    )
+    base["RollingYellowCardsForDiff5"] = (
+        base["HomeRollingYellowCardsFor5"] - base["AwayRollingYellowCardsFor5"]
+    )
+    base["RollingYellowCardsAgainstDiff5"] = (
+        base["HomeRollingYellowCardsAgainst5"] - base["AwayRollingYellowCardsAgainst5"]
+    )
+    base["VenueRollingPointsDiff5"] = base["HomeOnlyRollingPoints5"] - base["AwayOnlyRollingPoints5"]
+    base["VenueRollingGoalsForDiff5"] = (
+        base["HomeOnlyRollingGoalsFor5"] - base["AwayOnlyRollingGoalsFor5"]
+    )
+    base["VenueRollingGoalsAgainstDiff5"] = (
+        base["HomeOnlyRollingGoalsAgainst5"] - base["AwayOnlyRollingGoalsAgainst5"]
+    )
     return base
 
 
@@ -157,7 +252,18 @@ def main() -> None:
     history = raw_matches[
         raw_matches["Division"].isin(TOP5_DIVISIONS)
         & (raw_matches["MatchDateParsed"] <= matches["MatchDateParsed"].max())
-    ].dropna(subset=["Division", "MatchDate", "HomeTeam", "AwayTeam", "FTHome", "FTAway", "FTResult", "MatchDateParsed"])
+    ].dropna(
+        subset=[
+            "Division",
+            "MatchDate",
+            "HomeTeam",
+            "AwayTeam",
+            "FTHome",
+            "FTAway",
+            "FTResult",
+            "MatchDateParsed",
+        ]
+    )
 
     features = add_rolling_features(matches, history)
 
@@ -192,38 +298,66 @@ def main() -> None:
     features["Target_HomeGoals"] = features["FTHome"].astype(int)
     features["Target_AwayGoals"] = features["FTAway"].astype(int)
 
-    expected_columns = ["MatchDate", "MatchDateParsed"] + V1_FEATURES + TARGET_COLUMNS
-    output = features[expected_columns].copy()
-    output.to_csv(FEATURE_OUTPUT_PATH, index=False)
+    base_columns = ["MatchDate", "MatchDateParsed"]
+    v1_output = features[base_columns + V1_FEATURES + TARGET_COLUMNS].copy()
+    v2_output = features[base_columns + V2_FEATURES + TARGET_COLUMNS].copy()
+    v1_output.to_csv(FEATURE_V1_OUTPUT_PATH, index=False)
+    v2_output.to_csv(FEATURE_V2_OUTPUT_PATH, index=False)
 
-    report = pd.DataFrame(
+    v1_report = pd.DataFrame(
         [
-            {"metric": "rows", "value": len(output)},
-            {"metric": "columns", "value": len(output.columns)},
+            {"metric": "rows", "value": len(v1_output)},
+            {"metric": "columns", "value": len(v1_output.columns)},
             {"metric": "feature_columns", "value": len(V1_FEATURES)},
             {"metric": "target_columns", "value": len(TARGET_COLUMNS)},
-            {"metric": "missing_cells", "value": int(output.isna().sum().sum())},
+            {"metric": "missing_cells", "value": int(v1_output.isna().sum().sum())},
             {
                 "metric": "rows_with_any_missing",
-                "value": int(output.isna().any(axis=1).sum()),
+                "value": int(v1_output.isna().any(axis=1).sum()),
             },
             {"metric": "historical_rows_used_for_rolling", "value": len(history)},
             {
                 "metric": "rows_with_home_no_history",
-                "value": int((output["HomeMatchesPlayedBefore"] == 0).sum()),
+                "value": int((v1_output["HomeMatchesPlayedBefore"] == 0).sum()),
             },
             {
                 "metric": "rows_with_away_no_history",
-                "value": int((output["AwayMatchesPlayedBefore"] == 0).sum()),
+                "value": int((v1_output["AwayMatchesPlayedBefore"] == 0).sum()),
             },
         ]
     )
-    report.to_csv(FEATURE_REPORT_PATH, index=False)
+    v1_report.to_csv(FEATURE_V1_REPORT_PATH, index=False)
 
-    print(f"Feature data saved to: {FEATURE_OUTPUT_PATH}")
-    print(report.to_string(index=False))
-    print("Feature columns:")
-    print("\n".join(V1_FEATURES))
+    v2_report = pd.DataFrame(
+        [
+            {"metric": "rows", "value": len(v2_output)},
+            {"metric": "columns", "value": len(v2_output.columns)},
+            {"metric": "feature_columns", "value": len(V2_FEATURES)},
+            {"metric": "target_columns", "value": len(TARGET_COLUMNS)},
+            {"metric": "missing_cells", "value": int(v2_output.isna().sum().sum())},
+            {
+                "metric": "rows_with_any_missing",
+                "value": int(v2_output.isna().any(axis=1).sum()),
+            },
+            {"metric": "historical_rows_used_for_rolling", "value": len(history)},
+            {
+                "metric": "rows_with_home_no_history",
+                "value": int((v2_output["HomeMatchesPlayedBefore"] == 0).sum()),
+            },
+            {
+                "metric": "rows_with_away_no_history",
+                "value": int((v2_output["AwayMatchesPlayedBefore"] == 0).sum()),
+            },
+        ]
+    )
+    v2_report.to_csv(FEATURE_V2_REPORT_PATH, index=False)
+
+    print(f"V1 feature data saved to: {FEATURE_V1_OUTPUT_PATH}")
+    print(v1_report.to_string(index=False))
+    print(f"V2 feature data saved to: {FEATURE_V2_OUTPUT_PATH}")
+    print(v2_report.to_string(index=False))
+    print("V2 feature columns:")
+    print("\n".join(V2_FEATURES))
     print("Target columns:")
     print("\n".join(TARGET_COLUMNS))
 
