@@ -1,0 +1,11 @@
+metric,value
+rows_after_scope_filter,12533
+rows_after_required_drop,12528
+full_duplicate_rows_before_drop,0
+duplicate_match_keys,0
+date_parse_missing_after_filter,0
+unique_teams,146
+teams_missing_in_elo,0
+home_synced_elo_missing,0
+away_synced_elo_missing,0
+output_rows,12528

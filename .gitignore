@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+
+# Local environment
+.env
+.env.*
+
+# Large and generated data
+Matches.csv
+EloRatings.csv
+data/raw/
+data/interim/
+data/processed/
+
+# Trained models and temporary artifacts
+models/
+*.joblib
+*.pkl
+*.cbm
+*.onnx
+
+# Notebooks runtime state
+.ipynb_checkpoints/
+
+# OS/editor files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

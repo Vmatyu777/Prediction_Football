@@ -1,0 +1,15 @@
+column,missing_percent
+FTHome,0.0
+FTAway,0.0
+FTResult,0.0
+HomeCorners,0.0
+AwayCorners,0.0
+HomeYellow,0.0
+AwayYellow,0.0
+HomeElo,0.02
+AwayElo,0.02
+OddHome,0.02
+OddDraw,0.02
+OddAway,0.02
+Over25,0.02
+Under25,0.02

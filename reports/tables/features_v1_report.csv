@@ -1,0 +1,10 @@
+metric,value
+rows,12528
+columns,45
+feature_columns,36
+target_columns,7
+missing_cells,0
+rows_with_any_missing,0
+historical_rows_used_for_rolling,43709
+rows_with_home_no_history,5
+rows_with_away_no_history,9

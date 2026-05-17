@@ -1,0 +1,232 @@
+from pathlib import Path
+import sys
+
+import pandas as pd
+
+
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.append(str(PROJECT_ROOT))
+
+from src.features.feature_registry import TARGET_COLUMNS, V1_FEATURES  # noqa: E402
+
+
+RAW_DIR = PROJECT_ROOT / "data" / "raw"
+INTERIM_DIR = PROJECT_ROOT / "data" / "interim"
+REPORTS_DIR = PROJECT_ROOT / "reports" / "tables"
+
+RAW_MATCHES_PATH = RAW_DIR / "Matches.csv"
+CLEAN_INPUT_PATH = INTERIM_DIR / "matches_top5_2018_2025_clean.csv"
+FEATURE_OUTPUT_PATH = INTERIM_DIR / "matches_features_v1.csv"
+FEATURE_REPORT_PATH = REPORTS_DIR / "features_v1_report.csv"
+
+CORNERS_OVER_THRESHOLD = 9.5
+YELLOW_CARDS_OVER_THRESHOLD = 3.5
+TOP5_DIVISIONS = ["E0", "D1", "SP1", "I1", "F1"]
+
+
+def safe_inverse(series: pd.Series) -> pd.Series:
+    numeric = pd.to_numeric(series, errors="coerce")
+    return 1 / numeric.where(numeric > 0)
+
+
+def make_match_key(df: pd.DataFrame) -> pd.Series:
+    return (
+        df["Division"].astype(str)
+        + "|"
+        + df["MatchDate"].astype(str)
+        + "|"
+        + df["HomeTeam"].astype(str)
+        + "|"
+        + df["AwayTeam"].astype(str)
+    )
+
+
+def add_rolling_features(matches: pd.DataFrame, history: pd.DataFrame) -> pd.DataFrame:
+    base = matches.reset_index(drop=True).copy()
+    base["MatchKey"] = make_match_key(base)
+
+    history = history.copy().reset_index(drop=True)
+    history["HistoryRowId"] = history.index
+    history["MatchKey"] = make_match_key(history)
+
+    home_records = pd.DataFrame(
+        {
+            "HistoryRowId": history["HistoryRowId"],
+            "MatchKey": history["MatchKey"],
+            "MatchSide": "Home",
+            "MatchDateParsed": history["MatchDateParsed"],
+            "Team": history["HomeTeam"],
+            "GoalsFor": history["FTHome"],
+            "GoalsAgainst": history["FTAway"],
+            "Points": history["FTResult"].map({"H": 3, "D": 1, "A": 0}),
+        }
+    )
+    away_records = pd.DataFrame(
+        {
+            "HistoryRowId": history["HistoryRowId"],
+            "MatchKey": history["MatchKey"],
+            "MatchSide": "Away",
+            "MatchDateParsed": history["MatchDateParsed"],
+            "Team": history["AwayTeam"],
+            "GoalsFor": history["FTAway"],
+            "GoalsAgainst": history["FTHome"],
+            "Points": history["FTResult"].map({"H": 0, "D": 1, "A": 3}),
+        }
+    )
+
+    team_history = pd.concat([home_records, away_records], ignore_index=True)
+    team_history = team_history.sort_values(
+        ["Team", "MatchDateParsed", "HistoryRowId", "MatchSide"]
+    ).reset_index(drop=True)
+
+    grouped = team_history.groupby("Team", group_keys=False)
+    team_history["MatchesPlayedBefore"] = grouped.cumcount()
+    for column in ["GoalsFor", "GoalsAgainst", "Points"]:
+        shifted = grouped[column].shift(1)
+        team_history[f"Rolling{column}3"] = shifted.groupby(team_history["Team"]).rolling(
+            3, min_periods=1
+        ).mean().reset_index(level=0, drop=True)
+        team_history[f"Rolling{column}5"] = shifted.groupby(team_history["Team"]).rolling(
+            5, min_periods=1
+        ).mean().reset_index(level=0, drop=True)
+
+    rolling_columns = [
+        "MatchKey",
+        "MatchSide",
+        "MatchesPlayedBefore",
+        "RollingGoalsFor5",
+        "RollingGoalsAgainst5",
+        "RollingPoints3",
+        "RollingPoints5",
+    ]
+    home_rolling = team_history.loc[team_history["MatchSide"] == "Home", rolling_columns].rename(
+        columns={
+            "MatchesPlayedBefore": "HomeMatchesPlayedBefore",
+            "RollingGoalsFor5": "HomeRollingGoalsFor5",
+            "RollingGoalsAgainst5": "HomeRollingGoalsAgainst5",
+            "RollingPoints3": "HomeRollingPoints3",
+            "RollingPoints5": "HomeRollingPoints5",
+        }
+    )
+    away_rolling = team_history.loc[team_history["MatchSide"] == "Away", rolling_columns].rename(
+        columns={
+            "MatchesPlayedBefore": "AwayMatchesPlayedBefore",
+            "RollingGoalsFor5": "AwayRollingGoalsFor5",
+            "RollingGoalsAgainst5": "AwayRollingGoalsAgainst5",
+            "RollingPoints3": "AwayRollingPoints3",
+            "RollingPoints5": "AwayRollingPoints5",
+        }
+    )
+    home_rolling = home_rolling.drop(columns=["MatchSide"])
+    away_rolling = away_rolling.drop(columns=["MatchSide"])
+
+    base = base.merge(home_rolling, on="MatchKey", how="left")
+    base = base.merge(away_rolling, on="MatchKey", how="left")
+    base = base.drop(columns=["MatchKey"])
+
+    rolling_fill_columns = [
+        "HomeRollingGoalsFor5",
+        "HomeRollingGoalsAgainst5",
+        "AwayRollingGoalsFor5",
+        "AwayRollingGoalsAgainst5",
+        "HomeRollingPoints3",
+        "HomeRollingPoints5",
+        "AwayRollingPoints3",
+        "AwayRollingPoints5",
+    ]
+    base[rolling_fill_columns] = base[rolling_fill_columns].fillna(0)
+
+    base["RollingGoalsForDiff5"] = base["HomeRollingGoalsFor5"] - base["AwayRollingGoalsFor5"]
+    base["RollingGoalsAgainstDiff5"] = (
+        base["HomeRollingGoalsAgainst5"] - base["AwayRollingGoalsAgainst5"]
+    )
+    base["RollingPointsDiff3"] = base["HomeRollingPoints3"] - base["AwayRollingPoints3"]
+    base["RollingPointsDiff5"] = base["HomeRollingPoints5"] - base["AwayRollingPoints5"]
+    return base
+
+
+def main() -> None:
+    REPORTS_DIR.mkdir(parents=True, exist_ok=True)
+
+    matches = pd.read_csv(CLEAN_INPUT_PATH, low_memory=False)
+    matches["MatchDateParsed"] = pd.to_datetime(matches["MatchDateParsed"], errors="coerce")
+
+    raw_matches = pd.read_csv(RAW_MATCHES_PATH, low_memory=False)
+    raw_matches["MatchDateParsed"] = pd.to_datetime(raw_matches["MatchDate"], errors="coerce")
+    history = raw_matches[
+        raw_matches["Division"].isin(TOP5_DIVISIONS)
+        & (raw_matches["MatchDateParsed"] <= matches["MatchDateParsed"].max())
+    ].dropna(subset=["Division", "MatchDate", "HomeTeam", "AwayTeam", "FTHome", "FTAway", "FTResult", "MatchDateParsed"])
+
+    features = add_rolling_features(matches, history)
+
+    features["SeasonStartYear"] = features["MatchDateParsed"].apply(
+        lambda value: value.year if value.month >= 7 else value.year - 1
+    )
+    features["MatchMonth"] = features["MatchDateParsed"].dt.month
+
+    features["EloDiff"] = features["HomeElo"] - features["AwayElo"]
+    features["EloMean"] = (features["HomeElo"] + features["AwayElo"]) / 2
+
+    features["ImpliedHomeWin"] = safe_inverse(features["OddHome"])
+    features["ImpliedDraw"] = safe_inverse(features["OddDraw"])
+    features["ImpliedAwayWin"] = safe_inverse(features["OddAway"])
+    features["ImpliedOver25"] = safe_inverse(features["Over25"])
+    features["ImpliedUnder25"] = safe_inverse(features["Under25"])
+    features["BookmakerMargin1X2"] = (
+        features["ImpliedHomeWin"] + features["ImpliedDraw"] + features["ImpliedAwayWin"]
+    )
+
+    total_goals = features["FTHome"] + features["FTAway"]
+    total_corners = features["HomeCorners"] + features["AwayCorners"]
+    total_yellow_cards = features["HomeYellow"] + features["AwayYellow"]
+
+    features["Target_Outcome"] = features["FTResult"]
+    features["Target_BTTS"] = ((features["FTHome"] > 0) & (features["FTAway"] > 0)).astype(int)
+    features["Target_Over25"] = (total_goals > 2.5).astype(int)
+    features["Target_Corners_Over95"] = (total_corners > CORNERS_OVER_THRESHOLD).astype(int)
+    features["Target_YellowCards_Over35"] = (total_yellow_cards > YELLOW_CARDS_OVER_THRESHOLD).astype(
+        int
+    )
+    features["Target_HomeGoals"] = features["FTHome"].astype(int)
+    features["Target_AwayGoals"] = features["FTAway"].astype(int)
+
+    expected_columns = ["MatchDate", "MatchDateParsed"] + V1_FEATURES + TARGET_COLUMNS
+    output = features[expected_columns].copy()
+    output.to_csv(FEATURE_OUTPUT_PATH, index=False)
+
+    report = pd.DataFrame(
+        [
+            {"metric": "rows", "value": len(output)},
+            {"metric": "columns", "value": len(output.columns)},
+            {"metric": "feature_columns", "value": len(V1_FEATURES)},
+            {"metric": "target_columns", "value": len(TARGET_COLUMNS)},
+            {"metric": "missing_cells", "value": int(output.isna().sum().sum())},
+            {
+                "metric": "rows_with_any_missing",
+                "value": int(output.isna().any(axis=1).sum()),
+            },
+            {"metric": "historical_rows_used_for_rolling", "value": len(history)},
+            {
+                "metric": "rows_with_home_no_history",
+                "value": int((output["HomeMatchesPlayedBefore"] == 0).sum()),
+            },
+            {
+                "metric": "rows_with_away_no_history",
+                "value": int((output["AwayMatchesPlayedBefore"] == 0).sum()),
+            },
+        ]
+    )
+    report.to_csv(FEATURE_REPORT_PATH, index=False)
+
+    print(f"Feature data saved to: {FEATURE_OUTPUT_PATH}")
+    print(report.to_string(index=False))
+    print("Feature columns:")
+    print("\n".join(V1_FEATURES))
+    print("Target columns:")
+    print("\n".join(TARGET_COLUMNS))
+
+
+if __name__ == "__main__":
+    main()

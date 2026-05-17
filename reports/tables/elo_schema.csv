@@ -1,0 +1,5 @@
+column,dtype,missing_count,missing_percent,unique_count
+date,str,0,0.0,599
+club,str,0,0.0,895
+country,str,0,0.0,19
+elo,float64,0,0.0,60668
