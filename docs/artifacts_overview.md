@@ -11,6 +11,8 @@ This document gives a short engineering overview of the current project artifact
 - `src/models/evaluate_models.py` contains shared classification evaluation helpers: metrics, classification reports, confusion matrices, and confusion matrix figures.
 - `src/models/train_outcome.py` trains the outcome prediction pipeline with a time-based split and controlled feature-set experiments: V1 only, V1 plus BTTS/Over features, V1 plus corners/yellow features, and full V2.
 - `src/models/tune_outcome_logistic.py` runs the final controlled LogisticRegression optimization block: compact `C` and class-weight tuning plus validation-only draw threshold experiments.
+- `src/models/train_btts.py` trains the BTTS prediction pipeline with the same time-based split and controlled feature sets: V1 only and V1 plus BTTS-related rolling features.
+- `src/models/tune_btts_logistic.py` runs the final controlled BTTS LogisticRegression optimization block: compact `C` and class-weight tuning plus validation-only threshold experiments.
 
 ## CSV Datasets
 
@@ -45,10 +47,22 @@ Files under `data/` are not committed because they are local or potentially larg
 - `reports/tables/outcome/outcome_logistic_selected_threshold_metrics.csv` stores metrics for the selected threshold-tuned LogisticRegression candidate.
 - `reports/tables/outcome/outcome_final_controlled_comparison.csv` compares the final selected LogisticRegression configuration against previous outcome references.
 - `reports/figures/outcome/*_test_confusion_matrix.png` stores test confusion matrix figures.
+- `reports/tables/btts/btts_time_split.csv` records the BTTS train/validation/test split by season.
+- `reports/tables/btts/btts_feature_sets.csv` lists BTTS feature-set definitions.
+- `reports/tables/btts/btts_model_metrics.csv` compares BTTS models by accuracy, balanced accuracy, F1, precision, and recall.
+- `reports/tables/btts/btts_classification_reports.csv` stores per-class BTTS precision, recall, and F1.
+- `reports/tables/btts/btts_confusion_matrices.csv` stores BTTS confusion matrix counts.
+- `reports/tables/btts/btts_logistic_tuning_metrics.csv` stores compact BTTS LogisticRegression tuning metrics.
+- `reports/tables/btts/btts_logistic_threshold_validation.csv` stores validation-only BTTS threshold tuning results.
+- `reports/tables/btts/btts_logistic_selected_threshold_metrics.csv` stores metrics for the selected threshold-tuned BTTS candidate.
+- `reports/tables/btts/btts_final_controlled_comparison.csv` compares the final selected BTTS configuration against references.
+- `reports/tables/btts/*_feature_importance.csv` stores BTTS feature importance tables for models that expose coefficients or feature importances.
+- `reports/figures/btts/*_test_confusion_matrix.png` stores BTTS test confusion matrix figures.
 
 ## Model Artifacts
 
 - `models/outcome/` stores local trained outcome models. This directory is ignored by Git because trained model files can become large.
+- `models/btts/` stores local trained BTTS models. This directory is ignored by Git because trained model files can become large.
 
 ## Outcome Feature Sets
 
@@ -72,6 +86,27 @@ decision rule: default argmax
 ```
 
 This configuration was selected because it slightly improved accuracy and Macro F1 over the original V1 LogisticRegression baseline while improving draw recall. Threshold tuning was tested but not selected because the test trade-off was worse.
+
+## BTTS Feature Sets
+
+- `v1_only` uses the same V1 feature space as the outcome pipeline.
+- `v1_btts_related` adds rolling BTTS-rate and Over2.5-rate features to V1.
+
+BTTS-related rolling features were tested but were not selected as final because they did not improve the selected BTTS baseline.
+
+## Final BTTS Configuration
+
+The selected BTTS model is:
+
+```text
+features: v1_only
+model: LogisticRegression
+C: 1.0
+class_weight: None
+threshold: 0.50
+```
+
+BTTS uses balanced accuracy as the main practical metric because positive-class F1 can be misleading: an always-`Yes` dummy model gets high F1 but has zero recall for `No`. Threshold tuning and custom class weights were tested but not selected because they improved one side of the class balance while hurting the other side too much.
 
 ## Leakage Policy
 

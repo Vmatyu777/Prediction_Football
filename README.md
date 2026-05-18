@@ -9,11 +9,11 @@ Implemented:
 - data analysis and cleaning pipeline;
 - V1 and controlled V2 feature engineering;
 - outcome prediction pipeline for `Home Win / Draw / Away Win`;
-- controlled LogisticRegression tuning for the final outcome baseline.
+- controlled LogisticRegression tuning for the final outcome baseline;
+- BTTS prediction pipeline and controlled LogisticRegression tuning.
 
 Not implemented yet:
 
-- BTTS model;
 - exact score model;
 - over/under models;
 - API;
@@ -92,3 +92,54 @@ draw recall:       0.3836
 ```
 
 Threshold tuning was tested but was not selected as final because it improved draw recall while reducing test accuracy and Macro F1.
+
+## BTTS Prediction
+
+BTTS means `Both Teams To Score`.
+
+Target:
+
+- `Yes`: both teams scored at least one goal;
+- `No`: at least one team did not score.
+
+The BTTS pipeline uses the same time-based split as the outcome pipeline:
+
+- train: seasons 2018-2022;
+- validation: season 2023;
+- test: season 2024.
+
+Controlled feature sets:
+
+- `v1_only`;
+- `v1_btts_related`.
+
+Models:
+
+- `DummyClassifier`;
+- `LogisticRegression`;
+- `RandomForestClassifier` as reference;
+- `CatBoostClassifier` as reference.
+
+BTTS has an important metric issue: positive-class F1 can be misleading because `BTTS Yes` is slightly more frequent. A `DummyClassifier` that always predicts `Yes` gets high F1, but completely ignores the `No` class. For this reason, BTTS evaluation focuses on balanced accuracy and recall balance, while still reporting F1, precision, and recall.
+
+Final BTTS configuration:
+
+```text
+features: v1_only
+model: LogisticRegression
+C: 1.0
+class_weight: None
+threshold: 0.50
+```
+
+Final test metrics:
+
+```text
+accuracy:          0.5437
+balanced accuracy: 0.5335
+F1:                0.6042
+Yes recall:        0.6291
+No recall:         0.4379
+```
+
+BTTS-related rolling features were tested but were not selected as final. Threshold tuning and custom class weights were also tested but were not selected because they created unstable trade-offs between `Yes` and `No` recall.
