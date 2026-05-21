@@ -11,11 +11,12 @@ Implemented:
 - outcome prediction pipeline for `Home Win / Draw / Away Win`;
 - controlled LogisticRegression tuning for the final outcome baseline;
 - BTTS prediction pipeline and controlled LogisticRegression tuning.
+- Over2.5 prediction pipeline and controlled LogisticRegression tuning.
 
 Not implemented yet:
 
 - exact score model;
-- over/under models;
+- exact score and other over/under models;
 - API;
 - mobile application.
 
@@ -143,3 +144,52 @@ No recall:         0.4379
 ```
 
 BTTS-related rolling features were tested but were not selected as final. Threshold tuning and custom class weights were also tested but were not selected because they created unstable trade-offs between `Yes` and `No` recall.
+
+## Over2.5 Prediction
+
+Over2.5 predicts whether the total number of goals in a match is greater than 2.5.
+
+Target:
+
+- `Yes`: total goals > 2.5;
+- `No`: total goals <= 2.5.
+
+The Over2.5 pipeline uses the same time-based split as the outcome and BTTS pipelines:
+
+- train: seasons 2018-2022;
+- validation: season 2023;
+- test: season 2024.
+
+Controlled feature sets:
+
+- `v1_only`;
+- `v1_over25_related`.
+
+Models:
+
+- `DummyClassifier`;
+- `LogisticRegression`;
+- `RandomForestClassifier` as reference;
+- `CatBoostClassifier` as reference.
+
+Balanced accuracy is important for Over2.5 because a dummy always-`Yes` model can get a misleadingly high positive-class F1 while completely ignoring `No`.
+
+Final Over2.5 configuration:
+
+```text
+features: v1_only
+model: CatBoostClassifier
+threshold: 0.50
+```
+
+Final test metrics:
+
+```text
+accuracy:          0.5958
+balanced accuracy: 0.5875
+F1:                0.6516
+Yes recall:        0.7070
+No recall:         0.4681
+```
+
+Over2.5-related rolling features were tested but were not selected as final. LogisticRegression tuning improved metrics slightly, but final CatBoost remained stronger. Threshold tuning did not improve over the default `0.50` threshold.

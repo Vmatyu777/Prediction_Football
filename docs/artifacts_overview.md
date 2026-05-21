@@ -13,6 +13,8 @@ This document gives a short engineering overview of the current project artifact
 - `src/models/tune_outcome_logistic.py` runs the final controlled LogisticRegression optimization block: compact `C` and class-weight tuning plus validation-only draw threshold experiments.
 - `src/models/train_btts.py` trains the BTTS prediction pipeline with the same time-based split and controlled feature sets: V1 only and V1 plus BTTS-related rolling features.
 - `src/models/tune_btts_logistic.py` runs the final controlled BTTS LogisticRegression optimization block: compact `C` and class-weight tuning plus validation-only threshold experiments.
+- `src/models/train_over25.py` trains the Over2.5 prediction pipeline with the same time-based split and controlled feature sets: V1 only and V1 plus Over2.5-related rolling features.
+- `src/models/tune_over25_logistic.py` runs the final controlled Over2.5 LogisticRegression optimization block: compact `C` and class-weight tuning plus validation-only threshold experiments.
 
 ## CSV Datasets
 
@@ -58,11 +60,23 @@ Files under `data/` are not committed because they are local or potentially larg
 - `reports/tables/btts/btts_final_controlled_comparison.csv` compares the final selected BTTS configuration against references.
 - `reports/tables/btts/*_feature_importance.csv` stores BTTS feature importance tables for models that expose coefficients or feature importances.
 - `reports/figures/btts/*_test_confusion_matrix.png` stores BTTS test confusion matrix figures.
+- `reports/tables/over25/over25_time_split.csv` records the Over2.5 train/validation/test split by season.
+- `reports/tables/over25/over25_feature_sets.csv` lists Over2.5 feature-set definitions.
+- `reports/tables/over25/over25_model_metrics.csv` compares Over2.5 models by accuracy, balanced accuracy, F1, precision, and recall.
+- `reports/tables/over25/over25_classification_reports.csv` stores per-class Over2.5 precision, recall, and F1.
+- `reports/tables/over25/over25_confusion_matrices.csv` stores Over2.5 confusion matrix counts.
+- `reports/tables/over25/over25_logistic_tuning_metrics.csv` stores compact Over2.5 LogisticRegression tuning metrics.
+- `reports/tables/over25/over25_logistic_threshold_validation.csv` stores validation-only Over2.5 threshold tuning results.
+- `reports/tables/over25/over25_logistic_selected_threshold_metrics.csv` stores metrics for the selected threshold-tuned Over2.5 candidate.
+- `reports/tables/over25/over25_final_controlled_comparison.csv` compares the final selected Over2.5 configuration against references.
+- `reports/tables/over25/*_feature_importance.csv` stores Over2.5 feature importance tables for models that expose coefficients or feature importances.
+- `reports/figures/over25/*_test_confusion_matrix.png` stores Over2.5 test confusion matrix figures.
 
 ## Model Artifacts
 
 - `models/outcome/` stores local trained outcome models. This directory is ignored by Git because trained model files can become large.
 - `models/btts/` stores local trained BTTS models. This directory is ignored by Git because trained model files can become large.
+- `models/over25/` stores local trained Over2.5 models. This directory is ignored by Git because trained model files can become large.
 
 ## Outcome Feature Sets
 
@@ -107,6 +121,25 @@ threshold: 0.50
 ```
 
 BTTS uses balanced accuracy as the main practical metric because positive-class F1 can be misleading: an always-`Yes` dummy model gets high F1 but has zero recall for `No`. Threshold tuning and custom class weights were tested but not selected because they improved one side of the class balance while hurting the other side too much.
+
+## Over2.5 Feature Sets
+
+- `v1_only` uses the same V1 feature space as the outcome pipeline.
+- `v1_over25_related` adds rolling Over2.5-rate and BTTS-rate features to V1.
+
+Over2.5-related rolling features were tested but were not selected as final because they did not improve the selected Over2.5 baseline.
+
+## Final Over2.5 Configuration
+
+The selected Over2.5 model is:
+
+```text
+features: v1_only
+model: CatBoostClassifier
+threshold: 0.50
+```
+
+CatBoost became the final model for Over2.5 because it had the strongest validation balanced accuracy and the strongest practical test metrics among stable candidates. LogisticRegression tuning was still performed as a standardized controlled baseline optimization step across tasks, but the tuned LogisticRegression remained weaker than CatBoost. Threshold tuning did not improve over the default threshold.
 
 ## Leakage Policy
 
