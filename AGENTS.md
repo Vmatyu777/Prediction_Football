@@ -15,6 +15,7 @@ Build a diploma project: a machine learning information system for football matc
 - BTTS prediction is implemented as a secondary finalized pipeline.
 - Over2.5 prediction is implemented as a secondary finalized pipeline.
 - Corners Over9.5 prediction is implemented as a secondary finalized pipeline.
+- Yellow Cards Over3.5 prediction is implemented as a secondary finalized pipeline.
 - Additional tasks such as exact score, other over/under targets, corners, and yellow cards are secondary and should not be expanded unless explicitly requested.
 - Current data scope: top-5 European first divisions (`E0`, `D1`, `SP1`, `I1`, `F1`) for seasons 2018/19-2024/25.
 
@@ -27,6 +28,7 @@ Build a diploma project: a machine learning information system for football matc
 - For BTTS, balanced accuracy is important because positive-class F1 can be misleading when models collapse toward `BTTS Yes`.
 - For Over2.5, balanced accuracy is important because positive-class F1 can be misleading when models collapse toward `Over2.5 Yes`.
 - For Corners Over9.5, balanced accuracy is important because positive-class F1 can be misleading when models collapse toward `Corners Over9.5 Yes`.
+- For Yellow Cards Over3.5, balanced accuracy is important because positive-class F1 can be misleading when models collapse toward `Yellow Cards Over3.5 Yes`.
 - LogisticRegression remains the primary explainable baseline model across tasks.
 - CatBoost and RandomForest are used as strong reference architectures.
 - Compact LogisticRegression tuning is the standardized controlled optimization approach across tasks.
@@ -75,6 +77,18 @@ threshold: 0.50
 ```
 
 Corners-related rolling features were tested but not selected as final. LogisticRegression tuning improved the LogisticRegression baseline but remained weaker than CatBoost. Threshold tuning was tested but not selected over the default threshold.
+
+## Current Final Yellow Cards Over3.5 Model
+
+```text
+features: v1_yellow_related
+model: LogisticRegression
+C: 0.05
+class_weight: balanced
+threshold: 0.50
+```
+
+Yellow-related rolling features improved results and were selected for the final configuration. Threshold tuning was tested but not selected over the default threshold. RandomForest and CatBoost remain reference architectures for this task.
 
 ## Git Hygiene
 

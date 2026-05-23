@@ -1,0 +1,4 @@
+feature_set,model,split,threshold,accuracy,balanced_accuracy,f1,precision,recall,no_recall,yes_recall,true_no_pred_no,true_no_pred_yes,true_yes_pred_no,true_yes_pred_yes,experiment_type
+v1_yellow_related,logistic_c_0_05__balanced__threshold_tuned,train,0.55,0.6182563420848566,0.6374702005427624,0.6090310869071931,0.746384872080089,0.5143733231123035,0.7605670779732213,0.5143733231123035,2897,912,2534,2684,selected_threshold_tuned
+v1_yellow_related,logistic_c_0_05__balanced__threshold_tuned,validation,0.55,0.54337899543379,0.5663259656272147,0.5618838992332968,0.6951219512195121,0.47150735294117646,0.661144578313253,0.47150735294117646,439,225,575,513,selected_threshold_tuned
+v1_yellow_related,logistic_c_0_05__balanced__threshold_tuned,test,0.55,0.531160663236135,0.5501524634890066,0.5089820359281437,0.6390977443609023,0.4228855721393035,0.6774193548387096,0.4228855721393035,504,240,580,425,selected_threshold_tuned

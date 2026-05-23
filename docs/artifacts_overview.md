@@ -17,6 +17,8 @@ This document gives a short engineering overview of the current project artifact
 - `src/models/tune_over25_logistic.py` runs the final controlled Over2.5 LogisticRegression optimization block: compact `C` and class-weight tuning plus validation-only threshold experiments.
 - `src/models/train_corners.py` trains the Corners Over9.5 prediction pipeline with the same time-based split and controlled feature sets: V1 only and V1 plus corners-related rolling features.
 - `src/models/tune_corners_logistic.py` runs the final controlled Corners LogisticRegression optimization block: compact `C` and class-weight tuning plus validation-only threshold experiments.
+- `src/models/train_yellow_cards.py` trains the Yellow Cards Over3.5 prediction pipeline with the same time-based split and controlled feature sets: V1 only and V1 plus yellow-card-related rolling features.
+- `src/models/tune_yellow_cards_logistic.py` runs the final controlled Yellow Cards LogisticRegression optimization block: compact `C` and class-weight tuning plus validation-only threshold experiments.
 
 ## CSV Datasets
 
@@ -84,6 +86,17 @@ Files under `data/` are not committed because they are local or potentially larg
 - `reports/tables/corners/corners_final_controlled_comparison.csv` compares the final selected Corners configuration against references.
 - `reports/tables/corners/*_feature_importance.csv` stores Corners feature importance tables for models that expose coefficients or feature importances.
 - `reports/figures/corners/*_test_confusion_matrix.png` stores Corners test confusion matrix figures.
+- `reports/tables/yellow_cards/yellow_cards_time_split.csv` records the Yellow Cards train/validation/test split by season.
+- `reports/tables/yellow_cards/yellow_cards_feature_sets.csv` lists Yellow Cards feature-set definitions.
+- `reports/tables/yellow_cards/yellow_cards_model_metrics.csv` compares Yellow Cards models by accuracy, balanced accuracy, F1, precision, and recall.
+- `reports/tables/yellow_cards/yellow_cards_classification_reports.csv` stores per-class Yellow Cards precision, recall, and F1.
+- `reports/tables/yellow_cards/yellow_cards_confusion_matrices.csv` stores Yellow Cards confusion matrix counts.
+- `reports/tables/yellow_cards/yellow_cards_logistic_tuning_metrics.csv` stores compact Yellow Cards LogisticRegression tuning metrics.
+- `reports/tables/yellow_cards/yellow_cards_logistic_threshold_validation.csv` stores validation-only Yellow Cards threshold tuning results.
+- `reports/tables/yellow_cards/yellow_cards_logistic_selected_threshold_metrics.csv` stores metrics for the selected threshold-tuned Yellow Cards candidate.
+- `reports/tables/yellow_cards/yellow_cards_final_controlled_comparison.csv` compares the final selected Yellow Cards configuration against references.
+- `reports/tables/yellow_cards/*_feature_importance.csv` stores Yellow Cards feature importance tables for models that expose coefficients or feature importances.
+- `reports/figures/yellow_cards/*_test_confusion_matrix.png` stores Yellow Cards test confusion matrix figures.
 
 ## Model Artifacts
 
@@ -91,6 +104,7 @@ Files under `data/` are not committed because they are local or potentially larg
 - `models/btts/` stores local trained BTTS models. This directory is ignored by Git because trained model files can become large.
 - `models/over25/` stores local trained Over2.5 models. This directory is ignored by Git because trained model files can become large.
 - `models/corners/` stores local trained Corners Over9.5 models. This directory is ignored by Git because trained model files can become large.
+- `models/yellow_cards/` stores local trained Yellow Cards Over3.5 models. This directory is ignored by Git because trained model files can become large.
 
 ## Outcome Feature Sets
 
@@ -176,6 +190,29 @@ threshold: 0.50
 
 CatBoost became the final Corners model because it had the strongest validation balanced accuracy and the strongest stable test performance among practical candidates. LogisticRegression tuning improved the LogisticRegression baseline, but the tuned LogisticRegression remained weaker than CatBoost. RandomForest was kept as a reference architecture and showed clear overfitting. Threshold tuning was tested on validation only and was not selected because it did not improve over the default `0.50` threshold.
 
+## Yellow Cards Feature Sets
+
+- `v1_only` uses the same V1 feature space as the outcome pipeline.
+- `v1_yellow_related` adds compact rolling yellow-card features to V1: yellow cards for, yellow cards against, total yellow cards, Yellow Cards Over3.5 rate, and short-term yellow-card form indicators.
+
+Yellow-card-related rolling features are built only from previous matches with `shift(1)`. Current-match yellow cards are used only for `Target_YellowCards_Over35`, not as model features. Historical context is used in the same way as the existing feature pipeline: earlier top-5 league matches provide rolling history, while the final modeling dataset remains limited to 2018/19-2024/25.
+
+Yellow-related rolling features were selected because they improved validation and test behavior over `v1_only`, especially for the LogisticRegression baseline.
+
+## Final Yellow Cards Configuration
+
+The selected Yellow Cards Over3.5 model is:
+
+```text
+features: v1_yellow_related
+model: LogisticRegression
+C: 0.05
+class_weight: balanced
+threshold: 0.50
+```
+
+LogisticRegression became the final Yellow Cards model because the tuned configuration produced the most stable explainable balance between `Yes` and `No` recall on the test split. RandomForest had the strongest validation balanced accuracy, but it was rejected as final because it strongly overfit. CatBoost was rejected because it shifted too much toward the `Yes` class and had weak `No` recall on test. Threshold tuning was tested on validation only, but the selected validation threshold did not improve the final test result, so the default `0.50` threshold was kept.
+
 ## Leakage Policy
 
-v1 features do not include current-match results or statistics: `FTHome`, `FTAway`, `FTResult`, `HT*`, shots, fouls, corners, or cards. These fields are used only to create target columns and rolling features with `shift(1)`. Corners features follow the same policy: `HomeCorners` and `AwayCorners` are not used directly as features for the current match, and rolling corners features are shifted so each row only sees previous team history.
+v1 features do not include current-match results or statistics: `FTHome`, `FTAway`, `FTResult`, `HT*`, shots, fouls, corners, or cards. These fields are used only to create target columns and rolling features with `shift(1)`. Corners features follow the same policy: `HomeCorners` and `AwayCorners` are not used directly as features for the current match, and rolling corners features are shifted so each row only sees previous team history. Yellow Cards features also follow this policy: `HomeYellow` and `AwayYellow` are not used directly as current-match features, and rolling yellow-card features are shifted so each row only sees previous team history.

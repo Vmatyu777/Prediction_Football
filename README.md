@@ -12,7 +12,8 @@ Implemented:
 - controlled LogisticRegression tuning for the final outcome baseline;
 - BTTS prediction pipeline and controlled LogisticRegression tuning;
 - Over2.5 prediction pipeline and controlled LogisticRegression tuning;
-- Corners Over9.5 prediction pipeline and controlled LogisticRegression tuning.
+- Corners Over9.5 prediction pipeline and controlled LogisticRegression tuning;
+- Yellow Cards Over3.5 prediction pipeline and controlled LogisticRegression tuning.
 
 Not implemented yet:
 
@@ -245,3 +246,56 @@ No recall:         0.6390
 ```
 
 Corners-related rolling features were tested but did not provide stable improvement over `v1_only`. LogisticRegression tuning improved the baseline LogisticRegression, but final CatBoost was more stable and stronger by validation balanced accuracy. RandomForest showed clear overfitting. Threshold tuning did not improve over the default `0.50` threshold.
+
+## Yellow Cards Over3.5 Prediction
+
+Yellow Cards Over3.5 predicts whether the total number of yellow cards in a match is greater than 3.5.
+
+Target:
+
+- `Yes`: total yellow cards > 3.5;
+- `No`: total yellow cards <= 3.5.
+
+The Yellow Cards pipeline uses the same time-based split as the other finalized pipelines:
+
+- train: seasons 2018-2022;
+- validation: season 2023;
+- test: season 2024.
+
+The target is moderately imbalanced: `Yes` is about 58% of the full dataset, while `No` is about 42%.
+
+Controlled feature sets:
+
+- `v1_only`;
+- `v1_yellow_related`.
+
+Models:
+
+- `DummyClassifier`;
+- `LogisticRegression`;
+- `RandomForestClassifier` as reference;
+- `CatBoostClassifier` as reference.
+
+Balanced accuracy is the main practical metric for Yellow Cards Over3.5 because a `DummyClassifier` can get misleading accuracy and positive-class F1 by always predicting `Yes`, while completely missing the `No` class.
+
+Final Yellow Cards configuration:
+
+```text
+features: v1_yellow_related
+model: LogisticRegression
+C: 0.05
+class_weight: balanced
+threshold: 0.50
+```
+
+Final test metrics:
+
+```text
+accuracy:          0.5512
+balanced accuracy: 0.5559
+F1:                0.5731
+Yes recall:        0.5244
+No recall:         0.5874
+```
+
+Yellow-related rolling features provided stable improvement over `v1_only`. LogisticRegression tuning improved the baseline and produced the most stable explainable final model. Threshold tuning improved validation balanced accuracy but did not improve the final test result, so the default `0.50` threshold was selected. RandomForest was rejected as final because it strongly overfit, while CatBoost shifted too much toward the `Yes` class.

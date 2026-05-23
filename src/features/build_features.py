@@ -13,6 +13,7 @@ from src.features.feature_registry import (  # noqa: E402
     TARGET_COLUMNS,
     V1_FEATURES,
     V2_FEATURES,
+    YELLOW_CARDS_RELATED_ROLLING_FEATURES,
 )
 
 
@@ -75,8 +76,12 @@ def add_rolling_features(matches: pd.DataFrame, history: pd.DataFrame) -> pd.Dat
             "CornersFor": history["HomeCorners"],
             "CornersAgainst": history["AwayCorners"],
             "TotalCorners": history["HomeCorners"] + history["AwayCorners"],
+            "IsYellowCardsOver35": (
+                (history["HomeYellow"] + history["AwayYellow"]) > YELLOW_CARDS_OVER_THRESHOLD
+            ).astype(int),
             "YellowCardsFor": history["HomeYellow"],
             "YellowCardsAgainst": history["AwayYellow"],
+            "TotalYellowCards": history["HomeYellow"] + history["AwayYellow"],
         }
     )
     away_records = pd.DataFrame(
@@ -97,8 +102,12 @@ def add_rolling_features(matches: pd.DataFrame, history: pd.DataFrame) -> pd.Dat
             "CornersFor": history["AwayCorners"],
             "CornersAgainst": history["HomeCorners"],
             "TotalCorners": history["HomeCorners"] + history["AwayCorners"],
+            "IsYellowCardsOver35": (
+                (history["HomeYellow"] + history["AwayYellow"]) > YELLOW_CARDS_OVER_THRESHOLD
+            ).astype(int),
             "YellowCardsFor": history["AwayYellow"],
             "YellowCardsAgainst": history["HomeYellow"],
+            "TotalYellowCards": history["HomeYellow"] + history["AwayYellow"],
         }
     )
 
@@ -119,8 +128,10 @@ def add_rolling_features(matches: pd.DataFrame, history: pd.DataFrame) -> pd.Dat
         "CornersFor",
         "CornersAgainst",
         "TotalCorners",
+        "IsYellowCardsOver35",
         "YellowCardsFor",
         "YellowCardsAgainst",
+        "TotalYellowCards",
     ]:
         shifted = grouped[column].shift(1)
         team_history[f"Rolling{column}3"] = shifted.groupby(team_history["Team"]).rolling(
@@ -153,8 +164,12 @@ def add_rolling_features(matches: pd.DataFrame, history: pd.DataFrame) -> pd.Dat
         "RollingTotalCorners5",
         "RollingCornersFor3",
         "RollingCornersAgainst3",
+        "RollingIsYellowCardsOver355",
         "RollingYellowCardsFor5",
         "RollingYellowCardsAgainst5",
+        "RollingTotalYellowCards5",
+        "RollingYellowCardsFor3",
+        "RollingYellowCardsAgainst3",
         "VenueRollingGoalsFor5",
         "VenueRollingGoalsAgainst5",
         "VenueRollingPoints5",
@@ -174,8 +189,12 @@ def add_rolling_features(matches: pd.DataFrame, history: pd.DataFrame) -> pd.Dat
             "RollingTotalCorners5": "HomeRollingTotalCorners5",
             "RollingCornersFor3": "HomeRollingCornersFor3",
             "RollingCornersAgainst3": "HomeRollingCornersAgainst3",
+            "RollingIsYellowCardsOver355": "HomeRollingYellowCardsOver35Rate5",
             "RollingYellowCardsFor5": "HomeRollingYellowCardsFor5",
             "RollingYellowCardsAgainst5": "HomeRollingYellowCardsAgainst5",
+            "RollingTotalYellowCards5": "HomeRollingTotalYellowCards5",
+            "RollingYellowCardsFor3": "HomeRollingYellowCardsFor3",
+            "RollingYellowCardsAgainst3": "HomeRollingYellowCardsAgainst3",
             "VenueRollingGoalsFor5": "HomeOnlyRollingGoalsFor5",
             "VenueRollingGoalsAgainst5": "HomeOnlyRollingGoalsAgainst5",
             "VenueRollingPoints5": "HomeOnlyRollingPoints5",
@@ -196,8 +215,12 @@ def add_rolling_features(matches: pd.DataFrame, history: pd.DataFrame) -> pd.Dat
             "RollingTotalCorners5": "AwayRollingTotalCorners5",
             "RollingCornersFor3": "AwayRollingCornersFor3",
             "RollingCornersAgainst3": "AwayRollingCornersAgainst3",
+            "RollingIsYellowCardsOver355": "AwayRollingYellowCardsOver35Rate5",
             "RollingYellowCardsFor5": "AwayRollingYellowCardsFor5",
             "RollingYellowCardsAgainst5": "AwayRollingYellowCardsAgainst5",
+            "RollingTotalYellowCards5": "AwayRollingTotalYellowCards5",
+            "RollingYellowCardsFor3": "AwayRollingYellowCardsFor3",
+            "RollingYellowCardsAgainst3": "AwayRollingYellowCardsAgainst3",
             "VenueRollingGoalsFor5": "AwayOnlyRollingGoalsFor5",
             "VenueRollingGoalsAgainst5": "AwayOnlyRollingGoalsAgainst5",
             "VenueRollingPoints5": "AwayOnlyRollingPoints5",
@@ -239,6 +262,14 @@ def add_rolling_features(matches: pd.DataFrame, history: pd.DataFrame) -> pd.Dat
         "HomeRollingYellowCardsAgainst5",
         "AwayRollingYellowCardsFor5",
         "AwayRollingYellowCardsAgainst5",
+        "HomeRollingYellowCardsOver35Rate5",
+        "AwayRollingYellowCardsOver35Rate5",
+        "HomeRollingTotalYellowCards5",
+        "AwayRollingTotalYellowCards5",
+        "HomeRollingYellowCardsFor3",
+        "HomeRollingYellowCardsAgainst3",
+        "AwayRollingYellowCardsFor3",
+        "AwayRollingYellowCardsAgainst3",
         "HomeOnlyRollingPoints5",
         "HomeOnlyRollingGoalsFor5",
         "HomeOnlyRollingGoalsAgainst5",
@@ -275,6 +306,18 @@ def add_rolling_features(matches: pd.DataFrame, history: pd.DataFrame) -> pd.Dat
     )
     base["RollingYellowCardsAgainstDiff5"] = (
         base["HomeRollingYellowCardsAgainst5"] - base["AwayRollingYellowCardsAgainst5"]
+    )
+    base["RollingYellowCardsOver35RateDiff5"] = (
+        base["HomeRollingYellowCardsOver35Rate5"] - base["AwayRollingYellowCardsOver35Rate5"]
+    )
+    base["RollingTotalYellowCardsDiff5"] = (
+        base["HomeRollingTotalYellowCards5"] - base["AwayRollingTotalYellowCards5"]
+    )
+    base["RollingYellowCardsForDiff3"] = (
+        base["HomeRollingYellowCardsFor3"] - base["AwayRollingYellowCardsFor3"]
+    )
+    base["RollingYellowCardsAgainstDiff3"] = (
+        base["HomeRollingYellowCardsAgainst3"] - base["AwayRollingYellowCardsAgainst3"]
     )
     base["VenueRollingPointsDiff5"] = base["HomeOnlyRollingPoints5"] - base["AwayOnlyRollingPoints5"]
     base["VenueRollingGoalsForDiff5"] = (
@@ -346,6 +389,8 @@ def main() -> None:
     base_columns = ["MatchDate", "MatchDateParsed"]
     v2_columns = V2_FEATURES + [
         feature for feature in CORNERS_RELATED_ROLLING_FEATURES if feature not in V2_FEATURES
+    ] + [
+        feature for feature in YELLOW_CARDS_RELATED_ROLLING_FEATURES if feature not in V2_FEATURES
     ]
     v1_output = features[base_columns + V1_FEATURES + TARGET_COLUMNS].copy()
     v2_output = features[base_columns + v2_columns + TARGET_COLUMNS].copy()
