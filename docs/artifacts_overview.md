@@ -8,6 +8,7 @@ This document gives a short engineering overview of the current project artifact
 - `src/data/clean_data.py` filters top-5 leagues, removes rows with critical missing values, checks duplicates, teams, and ELO coverage, and synchronizes ELO by the latest available rating date `<= MatchDate`.
 - `src/features/feature_registry.py` stores centralized feature lists: base features, ELO features, odds features, rolling v1/v2 features, outcome feature-set configurations, target columns, and leakage columns.
 - `src/features/build_features.py` builds `matches_features_v1.csv` and `matches_features_v2.csv`: ELO/odds features, rolling goals/form features, controlled V2 rolling features, and target columns. Rolling features use historical context before 2018/19, while the final dataset remains limited to 2018/19-2024/25.
+- `src/analysis/target_threshold_analysis.py` runs a research-layer class-balance analysis for candidate betting thresholds in goals, corners, yellow cards, and red cards.
 - `src/models/evaluate_models.py` contains shared classification evaluation helpers: metrics, classification reports, confusion matrices, and confusion matrix figures.
 - `src/models/train_outcome.py` trains the outcome prediction pipeline with a time-based split and controlled feature-set experiments: V1 only, V1 plus BTTS/Over features, V1 plus corners/yellow features, and full V2.
 - `src/models/tune_outcome_logistic.py` runs the final controlled LogisticRegression optimization block: compact `C` and class-weight tuning plus validation-only draw threshold experiments.
@@ -42,6 +43,9 @@ Files under `data/` are not committed because they are local or potentially larg
 - `reports/tables/cleaning_quality_report.csv` records cleaning quality checks: rows, duplicates, dates, teams, and ELO coverage.
 - `reports/tables/features_v1_report.csv` records final feature dataset checks: rows, columns, missing values, and historical context size for rolling features.
 - `reports/tables/features_v2_report.csv` records the same checks for the V2 feature dataset.
+- `reports/tables/target_threshold_analysis.csv` stores class distributions for candidate goals, corners, and yellow-card thresholds.
+- `reports/tables/red_cards_distribution.csv` stores red-card target distributions by split and confirms red-card rarity.
+- `reports/figures/threshold_distributions/` stores class-balance charts for goals, corners, yellow cards, and red cards.
 - `reports/tables/outcome/outcome_time_split.csv` records the train/validation/test split by season.
 - `reports/tables/outcome/outcome_model_metrics.csv` compares outcome models and feature sets by accuracy, balanced accuracy, macro F1, and class recall.
 - `reports/tables/outcome/outcome_classification_reports.csv` stores per-class precision, recall, and F1 for each outcome model.
@@ -114,6 +118,25 @@ Files under `data/` are not committed because they are local or potentially larg
 - `full_v2` combines all V1 and V2 rolling features.
 
 V2 feature sets were tested but were not selected as the final outcome configuration because they did not provide stable test improvement.
+
+## Target Threshold Analysis
+
+The threshold analysis checks standard football betting lines before modeling secondary over/under tasks. It is a research/documentation artifact, not a prediction pipeline.
+
+Checked thresholds:
+
+- goals: `Over1.5`, `Over2.5`, `Over3.5`, `Over4.5`;
+- corners: `Over8.5`, `Over9.5`, `Over10.5`, `Over11.5`;
+- yellow cards: `Over2.5`, `Over3.5`, `Over4.5`, `Over5.5`;
+- red cards: `Over0.5`, `Over1.5`.
+
+Selected thresholds:
+
+- `Over2.5` goals was selected because it is much more balanced than `Over1.5` and much less rare than `Over4.5`, while remaining a standard and practical football betting line.
+- `Over9.5` corners was selected because it is almost perfectly balanced in the current dataset and is a standard corners betting line.
+- `Over3.5` yellow cards was selected because it gives the best compromise between class balance and practical interpretation.
+
+Red cards were analyzed separately and rejected as a main ML task because red-card targets are extremely imbalanced: any red card appears in a small minority of matches, and higher red-card thresholds are too rare for a stable primary target.
 
 ## Final Outcome Configuration
 

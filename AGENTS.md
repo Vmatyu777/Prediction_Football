@@ -19,6 +19,15 @@ Build a diploma project: a machine learning information system for football matc
 - Additional tasks such as exact score, other over/under targets, corners, and yellow cards are secondary and should not be expanded unless explicitly requested.
 - Current data scope: top-5 European first divisions (`E0`, `D1`, `SP1`, `I1`, `F1`) for seasons 2018/19-2024/25.
 
+## Target Threshold Context
+
+- Threshold values were selected using class distribution analysis, not arbitrarily.
+- Selected standard betting lines:
+  - goals: `Over2.5`;
+  - corners: `Over9.5`;
+  - yellow cards: `Over3.5`.
+- Red cards were analyzed separately and rejected as a main prediction task because of extreme class imbalance.
+
 ## Modeling Rules
 
 - Use only time-based train/validation/test splits.

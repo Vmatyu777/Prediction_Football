@@ -56,6 +56,32 @@ Feature engineering:
 
 V2 features were tested for outcome prediction but were not selected as final because they did not provide stable test improvement.
 
+## Target Threshold Analysis
+
+Before finalizing secondary over/under targets, the project includes a separate class-balance analysis for standard football betting lines. The thresholds were not selected arbitrarily: they were checked against target distributions to avoid extreme imbalance while keeping practical betting interpretation.
+
+Analyzed markets:
+
+- goals;
+- corners;
+- yellow cards;
+- red cards.
+
+Key findings:
+
+- Goals: `Over1.5` is too frequent, while `Over4.5` is too rare. `Over2.5` gives the best balance between class distribution and practical usefulness.
+- Corners: `Over9.5` is almost perfectly balanced and is the most reasonable corners threshold among the tested lines.
+- Yellow Cards: `Over3.5` gives the best compromise between class balance and practical interpretation.
+- Red Cards: red-card targets are too imbalanced, so red cards were not selected as a main prediction task.
+
+The selected betting lines are therefore:
+
+```text
+goals:        Over2.5
+corners:      Over9.5
+yellow cards: Over3.5
+```
+
 ## Outcome Prediction
 
 Run the outcome experiments:
