@@ -165,6 +165,24 @@ YELLOW_CARDS_FEATURE_SETS = {
     "v1_yellow_related": V1_FEATURES + YELLOW_CARDS_RELATED_ROLLING_FEATURES,
 }
 
+SCORE_RELATED_ROLLING_FEATURES = [
+    "HomeMatchesPlayedBefore",
+    "AwayMatchesPlayedBefore",
+    "HomeRollingGoalsFor5",
+    "HomeRollingGoalsAgainst5",
+    "AwayRollingGoalsFor5",
+    "AwayRollingGoalsAgainst5",
+    "RollingGoalsForDiff5",
+    "RollingGoalsAgainstDiff5",
+]
+
+SCORE_RELATED_FEATURES = BASE_FEATURES + ELO_FEATURES + ODDS_FEATURES + SCORE_RELATED_ROLLING_FEATURES
+
+EXACT_SCORE_FEATURE_SETS = {
+    "v1_only": V1_FEATURES,
+    "v1_score_related": SCORE_RELATED_FEATURES,
+}
+
 TARGET_COLUMNS = [
     "Target_Outcome",
     "Target_BTTS",

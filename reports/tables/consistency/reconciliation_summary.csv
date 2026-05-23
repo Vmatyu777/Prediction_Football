@@ -1,0 +1,4 @@
+split,rows,before_consistency_rate,after_consistency_rate,before_conflicting_rows,after_conflicting_rows,corrected_rows,score_corrections,outcome_corrections,btts_corrections,over25_corrections,remaining_outcome_conflicts,remaining_btts_conflicts,remaining_over25_conflicts
+test,1749,0.36592338479130937,1.0,1109,0,1015,1015,0,0,149,0,0,0
+train,9027,0.4001329345297441,1.0,5415,0,4864,4864,0,0,872,0,0,0
+validation,1752,0.377283105022831,1.0,1091,0,966,966,0,0,203,0,0,0

@@ -20,6 +20,8 @@ This document gives a short engineering overview of the current project artifact
 - `src/models/tune_corners_logistic.py` runs the final controlled Corners LogisticRegression optimization block: compact `C` and class-weight tuning plus validation-only threshold experiments.
 - `src/models/train_yellow_cards.py` trains the Yellow Cards Over3.5 prediction pipeline with the same time-based split and controlled feature sets: V1 only and V1 plus yellow-card-related rolling features.
 - `src/models/tune_yellow_cards_logistic.py` runs the final controlled Yellow Cards LogisticRegression optimization block: compact `C` and class-weight tuning plus validation-only threshold experiments.
+- `src/models/train_exact_score.py` trains the Exact Score regression pipeline with separate home-goals and away-goals regressors, then rounds and clips predictions to build exact scores.
+- `src/postprocessing/consistency_layer.py` builds consistency reports and applies the final priority-based rule reconciliation layer for user-facing predictions.
 
 ## CSV Datasets
 
@@ -101,6 +103,25 @@ Files under `data/` are not committed because they are local or potentially larg
 - `reports/tables/yellow_cards/yellow_cards_final_controlled_comparison.csv` compares the final selected Yellow Cards configuration against references.
 - `reports/tables/yellow_cards/*_feature_importance.csv` stores Yellow Cards feature importance tables for models that expose coefficients or feature importances.
 - `reports/figures/yellow_cards/*_test_confusion_matrix.png` stores Yellow Cards test confusion matrix figures.
+- `reports/tables/exact_score/exact_score_time_split.csv` records the Exact Score train/validation/test split by season.
+- `reports/tables/exact_score/exact_score_feature_sets.csv` lists Exact Score feature-set definitions.
+- `reports/tables/exact_score/exact_score_target_metrics.csv` stores home-goals and away-goals MAE/RMSE.
+- `reports/tables/exact_score/exact_score_model_metrics.csv` stores exact-score accuracy and score-derived outcome, BTTS, and Over2.5 accuracy.
+- `reports/tables/exact_score/exact_score_score_distribution.csv` stores actual and predicted score distributions.
+- `reports/tables/exact_score/exact_score_common_scores.csv` stores the most common actual and predicted scores.
+- `reports/tables/exact_score/exact_score_final_controlled_comparison.csv` compares selected and reference Exact Score configurations.
+- `reports/tables/exact_score/exact_score_final_predictions.csv` stores final Exact Score predictions used by the consistency layer.
+- `reports/figures/exact_score/*` stores score-distribution and total-goals-error figures for the selected Exact Score model.
+- `reports/tables/consistency/consistency_summary.csv` stores before-reconciliation consistency rates by split.
+- `reports/tables/consistency/conflict_counts_by_task.csv` stores conflict counts for outcome, BTTS, and Over2.5.
+- `reports/tables/consistency/inconsistency_patterns.csv` stores common logical inconsistency patterns.
+- `reports/tables/consistency/conflict_examples.csv` stores example conflicting predictions.
+- `reports/tables/consistency/reconciled_predictions.csv` stores final user-facing reconciled predictions.
+- `reports/tables/consistency/reconciliation_summary.csv` stores before/after consistency metrics and correction counts.
+- `reports/tables/consistency/reconciliation_examples.csv` stores examples of score and Over2.5 corrections.
+- `reports/tables/consistency/score_correction_patterns.csv` stores common exact-score correction patterns.
+- `reports/tables/consistency/over25_correction_patterns.csv` stores common Over2.5 correction patterns.
+- `reports/figures/consistency/*` stores consistency and reconciliation figures.
 
 ## Model Artifacts
 
@@ -109,6 +130,7 @@ Files under `data/` are not committed because they are local or potentially larg
 - `models/over25/` stores local trained Over2.5 models. This directory is ignored by Git because trained model files can become large.
 - `models/corners/` stores local trained Corners Over9.5 models. This directory is ignored by Git because trained model files can become large.
 - `models/yellow_cards/` stores local trained Yellow Cards Over3.5 models. This directory is ignored by Git because trained model files can become large.
+- `models/exact_score/` stores local trained Exact Score regression models. This directory is ignored by Git because trained model files can become large.
 
 ## Outcome Feature Sets
 
@@ -235,6 +257,47 @@ threshold: 0.50
 ```
 
 LogisticRegression became the final Yellow Cards model because the tuned configuration produced the most stable explainable balance between `Yes` and `No` recall on the test split. RandomForest had the strongest validation balanced accuracy, but it was rejected as final because it strongly overfit. CatBoost was rejected because it shifted too much toward the `Yes` class and had weak `No` recall on test. Threshold tuning was tested on validation only, but the selected validation threshold did not improve the final test result, so the default `0.50` threshold was kept.
+
+## Exact Score Configuration
+
+Exact Score is implemented as a simple regression pipeline rather than a large multiclass score classifier. The pipeline trains separate models for:
+
+- `Target_HomeGoals`;
+- `Target_AwayGoals`.
+
+Predicted goals are rounded to integers and clipped to the range `0-6`, then combined into an exact score. The selected controlled baseline is:
+
+```text
+features: v1_score_related
+model: Ridge regression
+post-processing: round and clip to 0-6
+```
+
+Exact score accuracy is expected to be low for football. This pipeline is used as a detail layer and as an input to post-processing reconciliation, not as the main prediction source.
+
+## Consistency And Reconciliation Layer
+
+The consistency layer is a deterministic rule-based post-processing block. It does not retrain models and does not change final model configurations.
+
+Final prediction priority:
+
+1. Outcome prediction.
+2. BTTS prediction.
+3. Over2.5 prediction.
+4. Exact score prediction.
+
+Outcome is the main anchor because it is the primary diploma task. BTTS is second because it constrains score structure. Over2.5 is third and can be corrected only when it conflicts with the higher-priority `Outcome + BTTS` structure. Exact score is the lowest-priority detail layer and is corrected to the nearest score that satisfies the final higher-level predictions.
+
+Before reconciliation, exact-score-derived predictions often conflict with direct outcome, BTTS, and Over2.5 predictions. After final priority-based reconciliation, all splits are fully consistent:
+
+```text
+split       before consistency  after consistency  remaining conflicts
+train       0.4001              1.0000             0
+validation  0.3773              1.0000             0
+test        0.3659              1.0000             0
+```
+
+On the test split, the layer corrected 1015 exact scores and 149 Over2.5 predictions while preserving outcome and BTTS predictions.
 
 ## Leakage Policy
 

@@ -13,12 +13,13 @@ Implemented:
 - BTTS prediction pipeline and controlled LogisticRegression tuning;
 - Over2.5 prediction pipeline and controlled LogisticRegression tuning;
 - Corners Over9.5 prediction pipeline and controlled LogisticRegression tuning;
-- Yellow Cards Over3.5 prediction pipeline and controlled LogisticRegression tuning.
+- Yellow Cards Over3.5 prediction pipeline and controlled LogisticRegression tuning;
+- exact score regression pipeline;
+- priority-based consistency and reconciliation layer.
 
 Not implemented yet:
 
-- exact score model;
-- exact score and other over/under models;
+- other over/under models;
 - API;
 - mobile application.
 
@@ -325,3 +326,37 @@ No recall:         0.5874
 ```
 
 Yellow-related rolling features provided stable improvement over `v1_only`. LogisticRegression tuning improved the baseline and produced the most stable explainable final model. Threshold tuning improved validation balanced accuracy but did not improve the final test result, so the default `0.50` threshold was selected. RandomForest was rejected as final because it strongly overfit, while CatBoost shifted too much toward the `Yes` class.
+
+## Consistency And Reconciliation Layer
+
+The project includes a separate rule-based post-processing layer for user-facing predictions. It does not retrain models and does not change the final ML configurations. Its role is to make predictions logically consistent before they are shown together.
+
+Final priority hierarchy:
+
+1. Outcome prediction.
+2. BTTS prediction.
+3. Over2.5 prediction.
+4. Exact score prediction.
+
+Outcome is the main anchor because match outcome prediction is the primary diploma task and the most important decision layer. BTTS is second because it directly constrains whether both teams can score. Over2.5 is third and can be corrected only when it conflicts with the higher-priority `Outcome + BTTS` structure. Exact score is the lowest-priority detail layer because it is the noisiest and least stable prediction task.
+
+Final reconciliation logic:
+
+- keep the final outcome prediction unchanged;
+- keep the final BTTS prediction unchanged when at least one score can satisfy `Outcome + BTTS`;
+- keep Over2.5 if it is compatible with `Outcome + BTTS`;
+- correct Over2.5 only when no score can satisfy all three higher-level predictions;
+- correct exact score to the nearest score that satisfies final `Outcome + BTTS + Over2.5`.
+
+Exact score no longer controls the system. Instead, exact score is adjusted to match the more stable predictions.
+
+Final consistency metrics:
+
+```text
+split       before consistency  after consistency  remaining conflicts
+train       0.4001              1.0000             0
+validation  0.3773              1.0000             0
+test        0.3659              1.0000             0
+```
+
+On the test split, the reconciliation layer corrected 1015 exact scores and 149 Over2.5 predictions while leaving outcome and BTTS predictions unchanged.
