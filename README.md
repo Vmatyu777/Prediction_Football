@@ -10,8 +10,9 @@ Implemented:
 - V1 and controlled V2 feature engineering;
 - outcome prediction pipeline for `Home Win / Draw / Away Win`;
 - controlled LogisticRegression tuning for the final outcome baseline;
-- BTTS prediction pipeline and controlled LogisticRegression tuning.
-- Over2.5 prediction pipeline and controlled LogisticRegression tuning.
+- BTTS prediction pipeline and controlled LogisticRegression tuning;
+- Over2.5 prediction pipeline and controlled LogisticRegression tuning;
+- Corners Over9.5 prediction pipeline and controlled LogisticRegression tuning.
 
 Not implemented yet:
 
@@ -193,3 +194,54 @@ No recall:         0.4681
 ```
 
 Over2.5-related rolling features were tested but were not selected as final. LogisticRegression tuning improved metrics slightly, but final CatBoost remained stronger. Threshold tuning did not improve over the default `0.50` threshold.
+
+## Corners Over9.5 Prediction
+
+Corners Over9.5 predicts whether the total number of corners in a match is greater than 9.5.
+
+Target:
+
+- `Yes`: total corners > 9.5;
+- `No`: total corners <= 9.5.
+
+The Corners pipeline uses the same time-based split as the other finalized pipelines:
+
+- train: seasons 2018-2022;
+- validation: season 2023;
+- test: season 2024.
+
+The target classes are close to balanced across the dataset, near a 50/50 split between `Yes` and `No`.
+
+Controlled feature sets:
+
+- `v1_only`;
+- `v1_corners_related`.
+
+Models:
+
+- `DummyClassifier`;
+- `LogisticRegression`;
+- `RandomForestClassifier` as reference;
+- `CatBoostClassifier` as reference.
+
+Balanced accuracy is the main practical metric for Corners Over9.5 because a `DummyClassifier` can get a misleadingly high positive-class F1 by always predicting `Yes`, while completely missing the `No` class.
+
+Final Corners configuration:
+
+```text
+features: v1_only
+model: CatBoostClassifier
+threshold: 0.50
+```
+
+Final test metrics:
+
+```text
+accuracy:          0.5563
+balanced accuracy: 0.5560
+F1:                0.5150
+Yes recall:        0.4730
+No recall:         0.6390
+```
+
+Corners-related rolling features were tested but did not provide stable improvement over `v1_only`. LogisticRegression tuning improved the baseline LogisticRegression, but final CatBoost was more stable and stronger by validation balanced accuracy. RandomForest showed clear overfitting. Threshold tuning did not improve over the default `0.50` threshold.

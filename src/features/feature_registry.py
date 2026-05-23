@@ -72,6 +72,27 @@ ROLLING_V2_CORNERS_YELLOW_FEATURES = [
     "RollingYellowCardsAgainstDiff5",
 ]
 
+CORNERS_RELATED_ROLLING_FEATURES = [
+    "HomeRollingCornersFor5",
+    "HomeRollingCornersAgainst5",
+    "AwayRollingCornersFor5",
+    "AwayRollingCornersAgainst5",
+    "RollingCornersForDiff5",
+    "RollingCornersAgainstDiff5",
+    "HomeRollingTotalCorners5",
+    "AwayRollingTotalCorners5",
+    "RollingTotalCornersDiff5",
+    "HomeRollingCornersOver95Rate5",
+    "AwayRollingCornersOver95Rate5",
+    "RollingCornersOver95RateDiff5",
+    "HomeRollingCornersFor3",
+    "HomeRollingCornersAgainst3",
+    "AwayRollingCornersFor3",
+    "AwayRollingCornersAgainst3",
+    "RollingCornersForDiff3",
+    "RollingCornersAgainstDiff3",
+]
+
 ROLLING_V2_VENUE_FORM_FEATURES = [
     "HomeOnlyRollingPoints5",
     "HomeOnlyRollingGoalsFor5",
@@ -111,6 +132,11 @@ OVER25_RELATED_ROLLING_FEATURES = ROLLING_V2_BTTS_OVER_FEATURES
 OVER25_FEATURE_SETS = {
     "v1_only": V1_FEATURES,
     "v1_over25_related": V1_FEATURES + OVER25_RELATED_ROLLING_FEATURES,
+}
+
+CORNERS_FEATURE_SETS = {
+    "v1_only": V1_FEATURES,
+    "v1_corners_related": V1_FEATURES + CORNERS_RELATED_ROLLING_FEATURES,
 }
 
 TARGET_COLUMNS = [
