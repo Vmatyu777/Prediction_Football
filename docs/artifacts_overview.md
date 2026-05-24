@@ -2,6 +2,11 @@
 
 This document gives a short engineering overview of the current project artifacts.
 
+## Application Metadata
+
+- `docs/final_app_models.md` describes the final local model package for future backend/API usage: final tasks, model types, feature sets, local model paths, thresholds, post-processing, and final test metrics.
+- `configs/final_app_models.json` stores machine-readable backend metadata for final model paths, feature-set names, thresholds, reconciliation priority order, and exact-score clipping range.
+
 ## Python Scripts
 
 - `src/data/analyze_data.py` reads `Matches.csv` and `EloRatings.csv`, builds table schemas, missing-value reports, league/season coverage reports, and confirms the selected top-5 league slice for 2018/19-2024/25.
@@ -131,6 +136,23 @@ Files under `data/` are not committed because they are local or potentially larg
 - `models/corners/` stores local trained Corners Over9.5 models. This directory is ignored by Git because trained model files can become large.
 - `models/yellow_cards/` stores local trained Yellow Cards Over3.5 models. This directory is ignored by Git because trained model files can become large.
 - `models/exact_score/` stores local trained Exact Score regression models. This directory is ignored by Git because trained model files can become large.
+- `models/final_app/` stores local copies of final trained models prepared for backend/API loading. This directory is ignored by Git; only metadata and documentation are tracked.
+
+## Final App Model Package
+
+The final app model package is a deployment-oriented local artifact layer for the future backend/API. It does not change final ML configurations and does not retrain models.
+
+Included final models:
+
+- outcome final model;
+- BTTS final model;
+- Over2.5 final model;
+- Corners Over9.5 final model;
+- Yellow Cards Over3.5 final model;
+- Exact Score home-goals regressor;
+- Exact Score away-goals regressor.
+
+Backend/API code should load model binaries from `models/final_app/`, read lightweight metadata from `configs/final_app_models.json`, and apply the priority-based reconciliation flow before returning user-facing predictions.
 
 ## Outcome Feature Sets
 

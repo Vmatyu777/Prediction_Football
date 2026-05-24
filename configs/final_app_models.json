@@ -1,0 +1,108 @@
+{
+  "model_package": {
+    "local_directory": "models/final_app",
+    "model_files_tracked_by_git": false,
+    "metadata_tracked_by_git": true,
+    "intended_consumer": "backend_api"
+  },
+  "reconciliation": {
+    "priority_order": [
+      "outcome",
+      "btts",
+      "over25",
+      "exact_score"
+    ],
+    "module": "src/postprocessing/consistency_layer.py",
+    "logic": "priority_based_rule_reconciliation",
+    "exact_score_clip_range": [
+      0,
+      6
+    ]
+  },
+  "models": [
+    {
+      "task": "outcome",
+      "model_type": "LogisticRegression",
+      "feature_set": "v1_only",
+      "input_feature_count": 36,
+      "output": "Home Win / Draw / Away Win",
+      "threshold": null,
+      "post_processing": "default_argmax",
+      "local_model_path": "models/final_app/outcome_model.joblib",
+      "source_model_path": "models/outcome/logistic_regression_controlled_best.joblib",
+      "tracked_by_git": false
+    },
+    {
+      "task": "btts",
+      "model_type": "LogisticRegression",
+      "feature_set": "v1_only",
+      "input_feature_count": 36,
+      "output": "BTTS Yes / No",
+      "threshold": 0.5,
+      "post_processing": "threshold_0_50",
+      "local_model_path": "models/final_app/btts_model.joblib",
+      "source_model_path": "models/btts/v1_only__logistic_regression.joblib",
+      "tracked_by_git": false
+    },
+    {
+      "task": "over25",
+      "model_type": "CatBoostClassifier",
+      "feature_set": "v1_only",
+      "input_feature_count": 36,
+      "output": "Over2.5 Yes / No",
+      "threshold": 0.5,
+      "post_processing": "threshold_0_50",
+      "local_model_path": "models/final_app/over25_model.cbm",
+      "source_model_path": "models/over25/v1_only__catboost_classifier.cbm",
+      "tracked_by_git": false
+    },
+    {
+      "task": "corners_over95",
+      "model_type": "CatBoostClassifier",
+      "feature_set": "v1_only",
+      "input_feature_count": 36,
+      "output": "Corners Over9.5 Yes / No",
+      "threshold": 0.5,
+      "post_processing": "threshold_0_50",
+      "local_model_path": "models/final_app/corners_over95_model.cbm",
+      "source_model_path": "models/corners/v1_only__catboost_classifier.cbm",
+      "tracked_by_git": false
+    },
+    {
+      "task": "yellow_cards_over35",
+      "model_type": "LogisticRegression",
+      "feature_set": "v1_yellow_related",
+      "input_feature_count": 54,
+      "output": "Yellow Cards Over3.5 Yes / No",
+      "threshold": 0.5,
+      "post_processing": "threshold_0_50",
+      "local_model_path": "models/final_app/yellow_cards_over35_model.joblib",
+      "source_model_path": "models/yellow_cards/logistic_regression_controlled_best.joblib",
+      "tracked_by_git": false
+    },
+    {
+      "task": "exact_score_home_goals",
+      "model_type": "Ridge",
+      "feature_set": "v1_score_related",
+      "input_feature_count": 30,
+      "output": "predicted home goals",
+      "threshold": null,
+      "post_processing": "round_and_clip_0_6",
+      "local_model_path": "models/final_app/exact_score_home_goals_model.joblib",
+      "source_model_path": "models/exact_score/v1_score_related__ridge_regression__home_goals.joblib",
+      "tracked_by_git": false
+    },
+    {
+      "task": "exact_score_away_goals",
+      "model_type": "Ridge",
+      "feature_set": "v1_score_related",
+      "input_feature_count": 30,
+      "output": "predicted away goals",
+      "threshold": null,
+      "post_processing": "round_and_clip_0_6",
+      "local_model_path": "models/final_app/exact_score_away_goals_model.joblib",
+      "source_model_path": "models/exact_score/v1_score_related__ridge_regression__away_goals.joblib",
+      "tracked_by_git": false
+    }
+  ]
+}

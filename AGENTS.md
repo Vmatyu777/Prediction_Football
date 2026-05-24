@@ -18,6 +18,7 @@ Build a diploma project: a machine learning information system for football matc
 - Yellow Cards Over3.5 prediction is implemented as a secondary finalized pipeline.
 - Exact score prediction is implemented as a secondary finalized regression pipeline.
 - A priority-based consistency and reconciliation layer is implemented as a final post-processing block.
+- Final app model package metadata is prepared for future backend/API loading.
 - Additional tasks such as other over/under targets, corners, and yellow cards are secondary and should not be expanded unless explicitly requested.
 - Current data scope: top-5 European first divisions (`E0`, `D1`, `SP1`, `I1`, `F1`) for seasons 2018/19-2024/25.
 
@@ -120,6 +121,16 @@ Post-processing logic:
 - Exact score is the lowest-priority detail layer and is corrected to the nearest score that satisfies final `Outcome + BTTS + Over2.5`.
 
 Current design decision: exact score must not drive the final system because it is the noisiest prediction task. It is used as a detailed display layer after reconciliation, not as the main consistency anchor.
+
+## Final App Model Package
+
+- Local final model files are prepared under `models/final_app/`.
+- `models/` remains ignored by Git, so model binaries must not be committed.
+- Tracked metadata:
+  - `docs/final_app_models.md`;
+  - `configs/final_app_models.json`.
+- Future backend/API code should load models from `models/final_app/`.
+- Final user-facing predictions must pass through the priority-based reconciliation layer.
 
 ## Git Hygiene
 

@@ -15,7 +15,8 @@ Implemented:
 - Corners Over9.5 prediction pipeline and controlled LogisticRegression tuning;
 - Yellow Cards Over3.5 prediction pipeline and controlled LogisticRegression tuning;
 - exact score regression pipeline;
-- priority-based consistency and reconciliation layer.
+- priority-based consistency and reconciliation layer;
+- final app model package metadata for future backend/API.
 
 Not implemented yet:
 
@@ -360,3 +361,30 @@ test        0.3659              1.0000             0
 ```
 
 On the test split, the reconciliation layer corrected 1015 exact scores and 149 Over2.5 predictions while leaving outcome and BTTS predictions unchanged.
+
+## Final App Model Package
+
+The ML research layer is finalized for the current diploma scope. A local model package is prepared for the future backend/API under:
+
+```text
+models/final_app/
+```
+
+This directory contains local copies of the final trained model artifacts for:
+
+- outcome;
+- BTTS;
+- Over2.5;
+- Corners Over9.5;
+- Yellow Cards Over3.5;
+- Exact Score home-goals regression;
+- Exact Score away-goals regression.
+
+Model binaries remain ignored by Git because `models/` is a local artifact directory. The tracked metadata lives in:
+
+```text
+docs/final_app_models.md
+configs/final_app_models.json
+```
+
+The future backend/API should load models from `models/final_app/`, use the tracked metadata for task names and paths, and pass final user-facing predictions through the priority-based reconciliation layer.
