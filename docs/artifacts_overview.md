@@ -6,6 +6,7 @@ This document gives a short engineering overview of the current project artifact
 
 - `docs/final_app_models.md` describes the final local model package for future backend/API usage: final tasks, model types, feature sets, local model paths, thresholds, post-processing, and final test metrics.
 - `configs/final_app_models.json` stores machine-readable backend metadata for final model paths, feature-set names, thresholds, reconciliation priority order, and exact-score clipping range.
+- `src/api/` contains the initial FastAPI backend skeleton for a future Android mobile application.
 
 ## Python Scripts
 
@@ -28,6 +29,11 @@ This document gives a short engineering overview of the current project artifact
 - `src/models/train_exact_score.py` trains the Exact Score regression pipeline with separate home-goals and away-goals regressors, then rounds and clips predictions to build exact scores.
 - `src/postprocessing/consistency_layer.py` builds consistency reports and applies the final priority-based rule reconciliation layer for user-facing predictions.
 - `src/deployment/prepare_final_app_models.py` rebuilds the local final app model package from already selected trained artifacts and refreshes `configs/final_app_models.json` without retraining.
+- `src/api/main.py` creates the FastAPI app and exposes `GET /health`, `GET /models`, and `POST /predict`.
+- `src/api/config.py` stores backend paths and API metadata.
+- `src/api/schemas.py` stores Pydantic request and response schemas.
+- `src/api/services/model_registry.py` reads `configs/final_app_models.json` and loads final local model binaries from `models/final_app/`.
+- `src/api/services/prediction_service.py` contains the initial prediction flow: placeholder feature preparation, direct model inference, exact-score clipping, reconciliation, and unified response formatting.
 
 ## CSV Datasets
 
@@ -160,6 +166,22 @@ Included final models:
 - Exact Score away-goals regressor.
 
 Backend/API code should load model binaries from `models/final_app/`, read lightweight metadata from `configs/final_app_models.json`, and apply the priority-based reconciliation flow before returning user-facing predictions.
+
+## Backend API Skeleton
+
+The current backend skeleton is intentionally lightweight and does not add a database layer yet.
+
+Run command:
+
+```bash
+uvicorn src.api.main:app --reload
+```
+
+Endpoints:
+
+- `GET /health` returns service status.
+- `GET /models` returns final model metadata for each configured task.
+- `POST /predict` returns a unified prediction response using local final models, placeholder input features, and the existing priority-based reconciliation layer.
 
 ## Outcome Feature Sets
 

@@ -16,12 +16,12 @@ Implemented:
 - Yellow Cards Over3.5 prediction pipeline and controlled LogisticRegression tuning;
 - exact score regression pipeline;
 - priority-based consistency and reconciliation layer;
-- final app model package metadata for future backend/API.
+- final app model package metadata for future backend/API;
+- initial FastAPI backend skeleton for a future Android mobile application.
 
 Not implemented yet:
 
 - other over/under models;
-- API;
 - mobile application.
 
 ## Data Scope
@@ -394,3 +394,25 @@ configs/final_app_models.json
 ```
 
 The future backend/API should load models from `models/final_app/`, use the tracked metadata for task names and paths, and pass final user-facing predictions through the priority-based reconciliation layer.
+
+## Backend API Skeleton
+
+The initial FastAPI backend lives under:
+
+```text
+src/api/
+```
+
+Available endpoints:
+
+- `GET /health`;
+- `GET /models`;
+- `POST /predict`.
+
+Run the backend locally:
+
+```bash
+uvicorn src.api.main:app --reload
+```
+
+The current `/predict` endpoint loads the final local models from `models/final_app/`, reads metadata from `configs/final_app_models.json`, uses placeholder feature preparation, and applies the priority-based reconciliation layer before returning a unified prediction response.

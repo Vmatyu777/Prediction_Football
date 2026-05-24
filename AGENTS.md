@@ -133,6 +133,15 @@ Current design decision: exact score must not drive the final system because it 
 - Future backend/API code should load models from `models/final_app/`.
 - Final user-facing predictions must pass through the priority-based reconciliation layer.
 
+## Backend API Skeleton
+
+- Initial FastAPI backend code lives under `src/api/`.
+- Current endpoints: `GET /health`, `GET /models`, `POST /predict`.
+- Run locally with `uvicorn src.api.main:app --reload`.
+- The backend must load tracked metadata from `configs/final_app_models.json` and local model binaries from `models/final_app/`.
+- Current feature preparation is a placeholder for API integration; do not retrain models or change final ML configurations from the API layer.
+- SQLite/database integration is not implemented yet and should be added only after the logical database model is defined.
+
 ## Git Hygiene
 
 - Large data and trained models must stay ignored by Git.
