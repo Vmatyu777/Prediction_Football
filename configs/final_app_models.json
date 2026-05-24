@@ -28,8 +28,8 @@
       "output": "Home Win / Draw / Away Win",
       "threshold": null,
       "post_processing": "default_argmax",
-      "local_model_path": "models/final_app/outcome_model.joblib",
       "source_model_path": "models/outcome/logistic_regression_controlled_best.joblib",
+      "local_model_path": "models/final_app/outcome_model.joblib",
       "tracked_by_git": false
     },
     {
@@ -40,8 +40,8 @@
       "output": "BTTS Yes / No",
       "threshold": 0.5,
       "post_processing": "threshold_0_50",
-      "local_model_path": "models/final_app/btts_model.joblib",
       "source_model_path": "models/btts/v1_only__logistic_regression.joblib",
+      "local_model_path": "models/final_app/btts_model.joblib",
       "tracked_by_git": false
     },
     {
@@ -52,8 +52,8 @@
       "output": "Over2.5 Yes / No",
       "threshold": 0.5,
       "post_processing": "threshold_0_50",
-      "local_model_path": "models/final_app/over25_model.cbm",
       "source_model_path": "models/over25/v1_only__catboost_classifier.cbm",
+      "local_model_path": "models/final_app/over25_model.cbm",
       "tracked_by_git": false
     },
     {
@@ -64,8 +64,8 @@
       "output": "Corners Over9.5 Yes / No",
       "threshold": 0.5,
       "post_processing": "threshold_0_50",
-      "local_model_path": "models/final_app/corners_over95_model.cbm",
       "source_model_path": "models/corners/v1_only__catboost_classifier.cbm",
+      "local_model_path": "models/final_app/corners_over95_model.cbm",
       "tracked_by_git": false
     },
     {
@@ -76,8 +76,8 @@
       "output": "Yellow Cards Over3.5 Yes / No",
       "threshold": 0.5,
       "post_processing": "threshold_0_50",
-      "local_model_path": "models/final_app/yellow_cards_over35_model.joblib",
       "source_model_path": "models/yellow_cards/logistic_regression_controlled_best.joblib",
+      "local_model_path": "models/final_app/yellow_cards_over35_model.joblib",
       "tracked_by_git": false
     },
     {
@@ -88,8 +88,8 @@
       "output": "predicted home goals",
       "threshold": null,
       "post_processing": "round_and_clip_0_6",
-      "local_model_path": "models/final_app/exact_score_home_goals_model.joblib",
       "source_model_path": "models/exact_score/v1_score_related__ridge_regression__home_goals.joblib",
+      "local_model_path": "models/final_app/exact_score_home_goals_model.joblib",
       "tracked_by_git": false
     },
     {
@@ -100,8 +100,8 @@
       "output": "predicted away goals",
       "threshold": null,
       "post_processing": "round_and_clip_0_6",
-      "local_model_path": "models/final_app/exact_score_away_goals_model.joblib",
       "source_model_path": "models/exact_score/v1_score_related__ridge_regression__away_goals.joblib",
+      "local_model_path": "models/final_app/exact_score_away_goals_model.joblib",
       "tracked_by_git": false
     }
   ]

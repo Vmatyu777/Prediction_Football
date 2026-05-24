@@ -9,6 +9,14 @@ This document describes the local model package prepared for the future backend/
 - Code, documentation, and lightweight metadata are tracked by Git.
 - The backend should load model files from `models/final_app/` using the metadata in `configs/final_app_models.json`.
 
+The package can be rebuilt from the selected final local model artifacts with:
+
+```bash
+python src/deployment/prepare_final_app_models.py
+```
+
+The script copies existing trained artifacts only. It does not train models, run experiments, or change final ML configurations.
+
 ## Final Models
 
 | Task | Model type | Feature set | Input features | Output | Threshold / post-processing | Local model path | Tracked |

@@ -27,6 +27,7 @@ This document gives a short engineering overview of the current project artifact
 - `src/models/tune_yellow_cards_logistic.py` runs the final controlled Yellow Cards LogisticRegression optimization block: compact `C` and class-weight tuning plus validation-only threshold experiments.
 - `src/models/train_exact_score.py` trains the Exact Score regression pipeline with separate home-goals and away-goals regressors, then rounds and clips predictions to build exact scores.
 - `src/postprocessing/consistency_layer.py` builds consistency reports and applies the final priority-based rule reconciliation layer for user-facing predictions.
+- `src/deployment/prepare_final_app_models.py` rebuilds the local final app model package from already selected trained artifacts and refreshes `configs/final_app_models.json` without retraining.
 
 ## CSV Datasets
 
@@ -141,6 +142,12 @@ Files under `data/` are not committed because they are local or potentially larg
 ## Final App Model Package
 
 The final app model package is a deployment-oriented local artifact layer for the future backend/API. It does not change final ML configurations and does not retrain models.
+
+Rebuild command:
+
+```bash
+python src/deployment/prepare_final_app_models.py
+```
 
 Included final models:
 

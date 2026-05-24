@@ -125,6 +125,7 @@ Current design decision: exact score must not drive the final system because it 
 ## Final App Model Package
 
 - Local final model files are prepared under `models/final_app/`.
+- The package can be rebuilt without retraining by running `python src/deployment/prepare_final_app_models.py`.
 - `models/` remains ignored by Git, so model binaries must not be committed.
 - Tracked metadata:
   - `docs/final_app_models.md`;

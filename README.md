@@ -370,6 +370,12 @@ The ML research layer is finalized for the current diploma scope. A local model 
 models/final_app/
 ```
 
+The package can be rebuilt from the selected final local model artifacts with:
+
+```bash
+python src/deployment/prepare_final_app_models.py
+```
+
 This directory contains local copies of the final trained model artifacts for:
 
 - outcome;
