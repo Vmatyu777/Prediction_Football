@@ -136,11 +136,20 @@ Current design decision: exact score must not drive the final system because it 
 ## Backend API Skeleton
 
 - Initial FastAPI backend code lives under `src/api/`.
-- Current endpoints: `GET /health`, `GET /models`, `POST /predict`.
+- Current endpoints: `GET /health`, `GET /db/health`, `GET /models`, `POST /predict`.
 - Run locally with `uvicorn src.api.main:app --reload`.
 - The backend must load tracked metadata from `configs/final_app_models.json` and local model binaries from `models/final_app/`.
 - Current feature preparation is a placeholder for API integration; do not retrain models or change final ML configurations from the API layer.
-- SQLite/database integration is not implemented yet and should be added only after the logical database model is defined.
+- Full match loading and SQLite-backed feature preparation are not implemented yet.
+
+## SQLite Database Layer
+
+- SQLite backend database code lives under `src/api/database/`.
+- Local database file path: `data/app/football.db`.
+- The database file is ignored by Git and must not be committed.
+- Create tables with `python src/api/database/init_db.py`.
+- Seed minimal dictionaries with `python src/api/database/seed_db.py`.
+- Current SQLite scope is schema plus reference data only; do not load the full match dataset until the next backend stage explicitly requests it.
 
 ## Git Hygiene
 

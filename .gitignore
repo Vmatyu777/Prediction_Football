@@ -17,6 +17,10 @@ EloRatings.csv
 data/raw/
 data/interim/
 data/processed/
+data/app/
+*.db
+*.sqlite
+*.sqlite3
 
 # Trained models and temporary artifacts
 /models/

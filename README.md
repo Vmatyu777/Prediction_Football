@@ -406,6 +406,7 @@ src/api/
 Available endpoints:
 
 - `GET /health`;
+- `GET /db/health`;
 - `GET /models`;
 - `POST /predict`.
 
@@ -416,3 +417,31 @@ uvicorn src.api.main:app --reload
 ```
 
 The current `/predict` endpoint loads the final local models from `models/final_app/`, reads metadata from `configs/final_app_models.json`, uses placeholder feature preparation, and applies the priority-based reconciliation layer before returning a unified prediction response.
+
+## SQLite Database Layer
+
+The initial SQLite database layer lives under:
+
+```text
+src/api/database/
+```
+
+Local database path:
+
+```text
+data/app/football.db
+```
+
+Create tables:
+
+```bash
+python src/api/database/init_db.py
+```
+
+Seed minimal reference data:
+
+```bash
+python src/api/database/seed_db.py
+```
+
+The current SQLite layer contains the physical schema and minimal dictionaries only. Full match loading and SQLite-backed feature preparation will be added later.

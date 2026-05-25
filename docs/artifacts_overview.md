@@ -7,6 +7,7 @@ This document gives a short engineering overview of the current project artifact
 - `docs/final_app_models.md` describes the final local model package for future backend/API usage: final tasks, model types, feature sets, local model paths, thresholds, post-processing, and final test metrics.
 - `configs/final_app_models.json` stores machine-readable backend metadata for final model paths, feature-set names, thresholds, reconciliation priority order, and exact-score clipping range.
 - `src/api/` contains the initial FastAPI backend skeleton for a future Android mobile application.
+- `src/api/database/` contains the initial SQLite physical database layer for backend persistence.
 
 ## Python Scripts
 
@@ -29,11 +30,15 @@ This document gives a short engineering overview of the current project artifact
 - `src/models/train_exact_score.py` trains the Exact Score regression pipeline with separate home-goals and away-goals regressors, then rounds and clips predictions to build exact scores.
 - `src/postprocessing/consistency_layer.py` builds consistency reports and applies the final priority-based rule reconciliation layer for user-facing predictions.
 - `src/deployment/prepare_final_app_models.py` rebuilds the local final app model package from already selected trained artifacts and refreshes `configs/final_app_models.json` without retraining.
-- `src/api/main.py` creates the FastAPI app and exposes `GET /health`, `GET /models`, and `POST /predict`.
+- `src/api/main.py` creates the FastAPI app and exposes `GET /health`, `GET /db/health`, `GET /models`, and `POST /predict`.
 - `src/api/config.py` stores backend paths and API metadata.
 - `src/api/schemas.py` stores Pydantic request and response schemas.
 - `src/api/services/model_registry.py` reads `configs/final_app_models.json` and loads final local model binaries from `models/final_app/`.
 - `src/api/services/prediction_service.py` contains the initial prediction flow: placeholder feature preparation, direct model inference, exact-score clipping, reconciliation, and unified response formatting.
+- `src/api/database/session.py` configures the SQLAlchemy SQLite engine, session factory, and declarative base.
+- `src/api/database/models.py` stores SQLAlchemy ORM models for the physical database schema.
+- `src/api/database/init_db.py` creates the local SQLite database file and all tables.
+- `src/api/database/seed_db.py` inserts minimal reference data for statuses, user roles, model types, metrics, prediction characteristics, and bookmakers.
 
 ## CSV Datasets
 
@@ -180,8 +185,31 @@ uvicorn src.api.main:app --reload
 Endpoints:
 
 - `GET /health` returns service status.
+- `GET /db/health` checks SQLite connectivity.
 - `GET /models` returns final model metadata for each configured task.
 - `POST /predict` returns a unified prediction response using local final models, placeholder input features, and the existing priority-based reconciliation layer.
+
+## SQLite Database Layer
+
+The local SQLite database is stored at:
+
+```text
+data/app/football.db
+```
+
+Create the physical schema:
+
+```bash
+python src/api/database/init_db.py
+```
+
+Seed minimal reference data:
+
+```bash
+python src/api/database/seed_db.py
+```
+
+The database currently contains schema and dictionaries only. It does not yet load the full match dataset and does not replace the current placeholder feature preparation in `/predict`.
 
 ## Outcome Feature Sets
 

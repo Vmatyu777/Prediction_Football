@@ -9,6 +9,11 @@ class HealthResponse(BaseModel):
     version: str
 
 
+class DatabaseHealthResponse(BaseModel):
+    status: str
+    database: str
+
+
 class ModelSummary(BaseModel):
     task: str
     model_type: str
