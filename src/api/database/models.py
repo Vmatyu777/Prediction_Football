@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import date, datetime
 from decimal import Decimal
 
-from sqlalchemy import Boolean, CheckConstraint, Date, DateTime, ForeignKey, Integer, Numeric, String, UniqueConstraint
+from sqlalchemy import Boolean, CheckConstraint, Date, DateTime, ForeignKey, Integer, Numeric, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.api.database.session import Base
@@ -155,7 +155,7 @@ class Model(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     name: Mapped[str] = mapped_column(String(60), nullable=False)
     version: Mapped[str] = mapped_column(String(20), nullable=False)
-    trained_at: Mapped[datetime | None] = mapped_column(DateTime)
+    trained_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     file_path: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
     model_type_id: Mapped[int] = mapped_column(ForeignKey("model_types.id"), nullable=False)
 

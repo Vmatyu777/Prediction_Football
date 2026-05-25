@@ -444,4 +444,22 @@ Seed minimal reference data:
 python src/api/database/seed_db.py
 ```
 
-The current SQLite layer contains the physical schema and minimal dictionaries only. Full match loading and SQLite-backed feature preparation will be added later.
+Seed final deployed model metadata and metrics:
+
+```bash
+python src/api/database/seed_final_models.py
+```
+
+Load cleaned football domain data:
+
+```bash
+python src/api/database/load_football_data.py
+```
+
+The loader uses:
+
+```text
+data/interim/matches_top5_2018_2025_clean.csv
+```
+
+It fills countries, leagues, seasons, teams, matches, match results, bookmakers, and odds. SQLite also stores lightweight metadata for the final deployed ML models and their main test metrics. Users, query history, predictions, and prediction characteristic values are not loaded yet. SQLite-backed feature preparation for `/predict` will be added later.

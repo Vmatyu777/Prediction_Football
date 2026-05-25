@@ -39,6 +39,8 @@ This document gives a short engineering overview of the current project artifact
 - `src/api/database/models.py` stores SQLAlchemy ORM models for the physical database schema.
 - `src/api/database/init_db.py` creates the local SQLite database file and all tables.
 - `src/api/database/seed_db.py` inserts minimal reference data for statuses, user roles, model types, metrics, prediction characteristics, and bookmakers.
+- `src/api/database/seed_final_models.py` inserts final deployed model metadata and main final test metrics into SQLite.
+- `src/api/database/load_football_data.py` loads cleaned domain football data from `data/interim/matches_top5_2018_2025_clean.csv` into SQLite.
 
 ## CSV Datasets
 
@@ -174,7 +176,7 @@ Backend/API code should load model binaries from `models/final_app/`, read light
 
 ## Backend API Skeleton
 
-The current backend skeleton is intentionally lightweight and does not add a database layer yet.
+The current backend skeleton is intentionally lightweight and keeps prediction feature preparation as a placeholder.
 
 Run command:
 
@@ -209,7 +211,19 @@ Seed minimal reference data:
 python src/api/database/seed_db.py
 ```
 
-The database currently contains schema and dictionaries only. It does not yet load the full match dataset and does not replace the current placeholder feature preparation in `/predict`.
+Seed final deployed model metadata and metrics:
+
+```bash
+python src/api/database/seed_final_models.py
+```
+
+Load cleaned football domain data:
+
+```bash
+python src/api/database/load_football_data.py
+```
+
+The loader uses `data/interim/matches_top5_2018_2025_clean.csv` as the source for domain data. It fills countries, leagues, seasons, teams, matches, match results, bookmakers, and odds. SQLite also stores final deployed model metadata and main final test metrics in `models` and `model_metrics`. It does not load users, query history, predictions, or prediction characteristic values, and it does not replace the current placeholder feature preparation in `/predict`.
 
 ## Outcome Feature Sets
 

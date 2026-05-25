@@ -140,7 +140,7 @@ Current design decision: exact score must not drive the final system because it 
 - Run locally with `uvicorn src.api.main:app --reload`.
 - The backend must load tracked metadata from `configs/final_app_models.json` and local model binaries from `models/final_app/`.
 - Current feature preparation is a placeholder for API integration; do not retrain models or change final ML configurations from the API layer.
-- Full match loading and SQLite-backed feature preparation are not implemented yet.
+- SQLite-backed feature preparation is not implemented yet.
 
 ## SQLite Database Layer
 
@@ -149,7 +149,12 @@ Current design decision: exact score must not drive the final system because it 
 - The database file is ignored by Git and must not be committed.
 - Create tables with `python src/api/database/init_db.py`.
 - Seed minimal dictionaries with `python src/api/database/seed_db.py`.
-- Current SQLite scope is schema plus reference data only; do not load the full match dataset until the next backend stage explicitly requests it.
+- Seed final deployed model metadata and metrics with `python src/api/database/seed_final_models.py`.
+- Load cleaned domain football data with `python src/api/database/load_football_data.py`.
+- The loader source is `data/interim/matches_top5_2018_2025_clean.csv`, not the feature matrix CSV files.
+- The loader fills countries, leagues, seasons, teams, matches, match results, bookmakers, and odds.
+- SQLite stores lightweight metadata for final deployed ML models in `models` and `model_metrics`.
+- Users, query history, predictions, and prediction characteristic values are not loaded by the football data loader.
 
 ## Git Hygiene
 
