@@ -30,17 +30,20 @@ This document gives a short engineering overview of the current project artifact
 - `src/models/train_exact_score.py` trains the Exact Score regression pipeline with separate home-goals and away-goals regressors, then rounds and clips predictions to build exact scores.
 - `src/postprocessing/consistency_layer.py` builds consistency reports and applies the final priority-based rule reconciliation layer for user-facing predictions.
 - `src/deployment/prepare_final_app_models.py` rebuilds the local final app model package from already selected trained artifacts and refreshes `configs/final_app_models.json` without retraining.
-- `src/api/main.py` creates the FastAPI app and exposes `GET /health`, `GET /db/health`, `GET /models`, and `POST /predict`.
+- `src/api/main.py` creates the FastAPI app and exposes health, model metadata, match browsing, match-based prediction, and persisted prediction endpoints.
 - `src/api/config.py` stores backend paths and API metadata.
 - `src/api/schemas.py` stores Pydantic request and response schemas.
 - `src/api/services/model_registry.py` reads `configs/final_app_models.json` and loads final local model binaries from `models/final_app/`.
-- `src/api/services/prediction_service.py` contains the initial prediction flow: placeholder feature preparation, direct model inference, exact-score clipping, reconciliation, and unified response formatting.
+- `src/api/services/prediction_service.py` contains model inference, exact-score clipping, reconciliation, prediction persistence, and short-window prediction reuse.
 - `src/api/database/session.py` configures the SQLAlchemy SQLite engine, session factory, and declarative base.
 - `src/api/database/models.py` stores SQLAlchemy ORM models for the physical database schema.
 - `src/api/database/init_db.py` creates the local SQLite database file and all tables.
 - `src/api/database/seed_db.py` inserts minimal reference data for statuses, user roles, model types, metrics, prediction characteristics, and bookmakers.
 - `src/api/database/seed_final_models.py` inserts final deployed model metadata and main final test metrics into SQLite.
 - `src/api/database/load_football_data.py` loads cleaned domain football data from `data/interim/matches_top5_2018_2025_clean.csv` into SQLite.
+- `src/api/database/load_elo_ratings.py` loads ELO rating history from `data/raw/EloRatings.csv` for teams already present in SQLite, with root CSV fallback for local compatibility.
+- `src/api/services/feature_service.py` builds runtime model feature vectors from SQLite data using training-compatible feature names, ordering, ELO logic, odds transforms, and rolling-history calculations.
+- `src/api/services/match_service.py` contains SQLAlchemy query helpers for match listing, match details, upcoming matches, and recent matches.
 
 ## CSV Datasets
 
@@ -51,6 +54,13 @@ This document gives a short engineering overview of the current project artifact
 - `data/interim/matches_features_v2.csv` is the controlled v2 feature dataset with additional rolling BTTS, Over2.5, venue-form, corners, and yellow-card features.
 
 Files under `data/` are not committed because they are local or potentially large generated artifacts.
+
+Data directory roles:
+
+- `data/raw/` stores canonical source CSV files such as `Matches.csv` and `EloRatings.csv`.
+- `data/interim/` stores cleaned and feature-engineered intermediate CSV files.
+- `data/processed/` is reserved for processed export artifacts.
+- `data/app/` stores the local SQLite application database.
 
 ## Reports
 
@@ -176,7 +186,7 @@ Backend/API code should load model binaries from `models/final_app/`, read light
 
 ## Backend API Skeleton
 
-The current backend skeleton is intentionally lightweight and keeps prediction feature preparation as a placeholder.
+The current backend skeleton is intentionally lightweight and uses SQLite runtime feature generation for match-based prediction.
 
 Run command:
 
@@ -189,7 +199,13 @@ Endpoints:
 - `GET /health` returns service status.
 - `GET /db/health` checks SQLite connectivity.
 - `GET /models` returns final model metadata for each configured task.
-- `POST /predict` returns a unified prediction response using local final models, placeholder input features, and the existing priority-based reconciliation layer.
+- `POST /predict` returns a unified prediction response for sample/manual JSON input.
+- `GET /matches` returns paginated real matches from SQLite with optional league, season, and date filters.
+- `GET /matches/{match_id}` returns match details with teams, result, and odds.
+- `GET /matches/upcoming` returns matches without result.
+- `GET /matches/recent` returns recent finished matches.
+- `POST /predict/{match_id}` builds runtime features from SQLite data, runs final models, reconciles outputs, stores prediction rows, and returns the final prediction.
+- `GET /predictions/{prediction_id}` returns a persisted prediction with characteristic values.
 
 ## SQLite Database Layer
 
@@ -217,13 +233,19 @@ Seed final deployed model metadata and metrics:
 python src/api/database/seed_final_models.py
 ```
 
+Load ELO rating history:
+
+```bash
+python src/api/database/load_elo_ratings.py
+```
+
 Load cleaned football domain data:
 
 ```bash
 python src/api/database/load_football_data.py
 ```
 
-The loader uses `data/interim/matches_top5_2018_2025_clean.csv` as the source for domain data. It fills countries, leagues, seasons, teams, matches, match results, bookmakers, and odds. SQLite also stores final deployed model metadata and main final test metrics in `models` and `model_metrics`. It does not load users, query history, predictions, or prediction characteristic values, and it does not replace the current placeholder feature preparation in `/predict`.
+The football loader uses `data/interim/matches_top5_2018_2025_clean.csv` as the source for domain data. It fills countries, leagues, seasons, teams, matches, match results, bookmakers, and odds. SQLite also stores ELO rating history, final deployed model metadata, and main final test metrics. `POST /predict/{match_id}` generates runtime features from SQLite instead of training feature CSV files, persists predictions and prediction characteristic values, and reuses a recent existing prediction for the same match and model to avoid short-window duplicates. Users and query history are not loaded yet.
 
 ## Outcome Feature Sets
 

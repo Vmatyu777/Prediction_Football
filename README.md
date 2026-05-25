@@ -39,6 +39,13 @@ data/raw/Matches.csv
 data/raw/EloRatings.csv
 ```
 
+Local data directory roles:
+
+- `data/raw/`: canonical source CSV files.
+- `data/interim/`: cleaned and feature-engineered intermediate CSV files.
+- `data/processed/`: reserved for processed export artifacts.
+- `data/app/`: local SQLite application database.
+
 ## Data And Feature Pipeline
 
 Run the preparation pipeline:
@@ -408,7 +415,13 @@ Available endpoints:
 - `GET /health`;
 - `GET /db/health`;
 - `GET /models`;
+- `GET /matches`;
+- `GET /matches/{match_id}`;
+- `GET /matches/upcoming`;
+- `GET /matches/recent`;
 - `POST /predict`.
+- `POST /predict/{match_id}`;
+- `GET /predictions/{prediction_id}`.
 
 Run the backend locally:
 
@@ -416,7 +429,7 @@ Run the backend locally:
 uvicorn src.api.main:app --reload
 ```
 
-The current `/predict` endpoint loads the final local models from `models/final_app/`, reads metadata from `configs/final_app_models.json`, uses placeholder feature preparation, and applies the priority-based reconciliation layer before returning a unified prediction response.
+The `/predict` endpoint remains available for sample/manual JSON input. The match-based `/predict/{match_id}` flow loads final models from `models/final_app/`, reads metadata from `configs/final_app_models.json`, generates runtime features from SQLite, applies the priority-based reconciliation layer, and stores prediction outputs.
 
 ## SQLite Database Layer
 
@@ -450,6 +463,12 @@ Seed final deployed model metadata and metrics:
 python src/api/database/seed_final_models.py
 ```
 
+Load ELO rating history for existing teams:
+
+```bash
+python src/api/database/load_elo_ratings.py
+```
+
 Load cleaned football domain data:
 
 ```bash
@@ -462,4 +481,10 @@ The loader uses:
 data/interim/matches_top5_2018_2025_clean.csv
 ```
 
-It fills countries, leagues, seasons, teams, matches, match results, bookmakers, and odds. SQLite also stores lightweight metadata for the final deployed ML models and their main test metrics. Users, query history, predictions, and prediction characteristic values are not loaded yet. SQLite-backed feature preparation for `/predict` will be added later.
+The ELO loader uses `data/raw/EloRatings.csv` as its primary source and keeps the root `EloRatings.csv` path only as a local fallback.
+
+It fills countries, leagues, seasons, teams, matches, match results, bookmakers, and odds. SQLite also stores ELO rating history and lightweight metadata for the final deployed ML models and their main test metrics.
+
+`POST /predict/{match_id}` builds model feature vectors from SQLite match, odds, ELO, and rolling match history, calls the existing final models, applies the reconciliation layer, stores the prediction, and returns the final user-facing JSON. Recent repeated calls for the same match and model reuse the stored prediction instead of creating duplicates. Users and query history are not loaded yet.
+
+Runtime feature generation for `POST /predict/{match_id}` lives in `src/api/services/feature_service.py`. It uses SQLite as the runtime source and builds the same deployed feature sets used by the final models: `v1_only`, `v1_score_related`, and `v1_yellow_related`. The service follows the training feature names and ordering from `src/features/feature_registry.py`, reuses the same ELO, odds transform, and rolling-history formulas, and reports debug checks for feature count, missing values, NaN values, and ordering.
