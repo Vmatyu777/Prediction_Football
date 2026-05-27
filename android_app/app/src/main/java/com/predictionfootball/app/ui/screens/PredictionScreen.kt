@@ -1,0 +1,158 @@
+package com.predictionfootball.app.ui.screens
+
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
+import com.predictionfootball.app.R
+import com.predictionfootball.app.models.PredictionDto
+import com.predictionfootball.app.ui.displayBinaryLabel
+import com.predictionfootball.app.ui.displayOutcome
+import com.predictionfootball.app.ui.displayProbabilityLabel
+import com.predictionfootball.app.ui.formatBackendUtcDateTime
+import com.predictionfootball.app.ui.components.ErrorContent
+import com.predictionfootball.app.ui.components.InfoCard
+import com.predictionfootball.app.ui.components.KeyValueRow
+import com.predictionfootball.app.ui.components.LoadingContent
+import com.predictionfootball.app.ui.components.ScreenScaffold
+import com.predictionfootball.app.ui.theme.PredictionFootballTheme
+import com.predictionfootball.app.viewmodel.PredictionViewModel
+import com.predictionfootball.app.viewmodel.UiState
+
+@Composable
+fun PredictionRoute(
+    viewModel: PredictionViewModel,
+    onBack: () -> Unit,
+) {
+    val state by viewModel.state.collectAsState()
+
+    PredictionScreen(
+        state = state,
+        onBack = onBack,
+        onRetry = viewModel::generatePrediction,
+    )
+}
+
+@Composable
+fun PredictionScreen(
+    state: UiState<PredictionDto>,
+    onBack: () -> Unit,
+    onRetry: () -> Unit,
+) {
+    ScreenScaffold(
+        title = stringResource(R.string.prediction_result),
+        subtitle = stringResource(R.string.prediction_result_subtitle),
+        actions = {
+            OutlinedButton(onClick = onBack) {
+                Text(stringResource(R.string.back))
+            }
+        },
+    ) {
+        when (state) {
+            UiState.Loading -> LoadingContent(stringResource(R.string.generating_prediction))
+            is UiState.Error -> ErrorContent(message = state.message, onRetry = onRetry)
+            is UiState.Success -> PredictionContent(prediction = state.data)
+        }
+    }
+}
+
+@Composable
+private fun PredictionContent(prediction: PredictionDto) {
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        InfoCard(modifier = Modifier.fillMaxWidth()) {
+            Text(
+                text = stringResource(R.string.main_outcome),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            KeyValueRow(stringResource(R.string.outcome), displayOutcome(prediction.outcome))
+            ProbabilityRow(prediction.outcomeProbabilities)
+        }
+
+        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            InfoCard(modifier = Modifier.weight(1f)) {
+                KeyValueRow(stringResource(R.string.btts), displayBinaryLabel(prediction.btts))
+                ProbabilityRow(prediction.bttsProbabilities)
+            }
+            InfoCard(modifier = Modifier.weight(1f)) {
+                KeyValueRow(stringResource(R.string.over25), displayBinaryLabel(prediction.over25))
+                ProbabilityRow(prediction.over25Probabilities)
+            }
+        }
+
+        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            InfoCard(modifier = Modifier.weight(1f)) {
+                KeyValueRow(stringResource(R.string.corners_over95), displayBinaryLabel(prediction.cornersOver95))
+                ProbabilityRow(prediction.cornersOver95Probabilities)
+            }
+            InfoCard(modifier = Modifier.weight(1f)) {
+                KeyValueRow(stringResource(R.string.yellow_cards_over35), displayBinaryLabel(prediction.yellowCardsOver35))
+                ProbabilityRow(prediction.yellowCardsOver35Probabilities)
+            }
+        }
+
+        InfoCard(modifier = Modifier.fillMaxWidth()) {
+            KeyValueRow(stringResource(R.string.exact_score), prediction.exactScore)
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "${stringResource(R.string.created_at)}: ${formatBackendUtcDateTime(prediction.createdAt)}",
+                modifier = Modifier.fillMaxWidth(),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.End,
+            )
+        }
+    }
+}
+
+@Composable
+private fun ProbabilityRow(probabilities: Map<String, Double>) {
+    Spacer(modifier = Modifier.height(8.dp))
+    probabilities.entries.sortedBy { it.key }.forEach { (label, value) ->
+        KeyValueRow(label = displayProbabilityLabel(label), value = "${(value * 100).toInt()}%")
+    }
+}
+
+@Preview(showBackground = true, widthDp = 900)
+@Composable
+private fun PredictionScreenPreview() {
+    PredictionFootballTheme {
+        PredictionScreen(
+            state = UiState.Success(samplePrediction()),
+            onBack = {},
+            onRetry = {},
+        )
+    }
+}
+
+private fun samplePrediction() = PredictionDto(
+    predictionId = 10,
+    matchId = 1,
+    createdAt = "2026-05-26 23:32:00.000000",
+    outcome = "H",
+    outcomeProbabilities = mapOf("H" to 0.52, "D" to 0.25, "A" to 0.23),
+    btts = "Yes",
+    bttsProbabilities = mapOf("No" to 0.42, "Yes" to 0.58),
+    over25 = "Yes",
+    over25Probabilities = mapOf("No" to 0.39, "Yes" to 0.61),
+    cornersOver95 = "No",
+    cornersOver95Probabilities = mapOf("No" to 0.55, "Yes" to 0.45),
+    yellowCardsOver35 = "Yes",
+    yellowCardsOver35Probabilities = mapOf("No" to 0.46, "Yes" to 0.54),
+    exactScore = "2:1",
+)

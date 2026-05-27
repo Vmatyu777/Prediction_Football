@@ -8,6 +8,7 @@ This document gives a short engineering overview of the current project artifact
 - `configs/final_app_models.json` stores machine-readable backend metadata for final model paths, feature-set names, thresholds, reconciliation priority order, and exact-score clipping range.
 - `src/api/` contains the initial FastAPI backend skeleton for a future Android mobile application.
 - `src/api/database/` contains the initial SQLite physical database layer for backend persistence.
+- `android_app/` contains the Android tablet MVP client. It is a Kotlin + Jetpack Compose thin client that calls FastAPI through Retrofit and does not run ML models, calculate ML features, or access SQLite directly.
 
 ## Python Scripts
 
@@ -34,7 +35,8 @@ This document gives a short engineering overview of the current project artifact
 - `src/api/config.py` stores backend paths and API metadata.
 - `src/api/schemas.py` stores Pydantic request and response schemas.
 - `src/api/services/model_registry.py` reads `configs/final_app_models.json` and loads final local model binaries from `models/final_app/`.
-- `src/api/services/prediction_service.py` contains model inference, exact-score clipping, reconciliation, prediction persistence, and short-window prediction reuse.
+- `src/api/services/prediction_service.py` contains model inference, exact-score clipping, reconciliation, prediction persistence, and model-aware prediction reuse by `match_id` plus deployed outcome `model_id`.
+- `src/api/database/clear_runtime_data.py` is a development-only cleanup script for runtime/demo data. It clears `users`, `user_query_history`, `predictions`, and `prediction_characteristic_values` while preserving football domain data, odds, teams, model metadata, metrics, and ELO ratings.
 - `src/api/database/session.py` configures the SQLAlchemy SQLite engine, session factory, and declarative base.
 - `src/api/database/models.py` stores SQLAlchemy ORM models for the physical database schema.
 - `src/api/database/init_db.py` creates the local SQLite database file and all tables.
@@ -44,6 +46,15 @@ This document gives a short engineering overview of the current project artifact
 - `src/api/database/load_elo_ratings.py` loads ELO rating history from `data/raw/EloRatings.csv` for teams already present in SQLite, with root CSV fallback for local compatibility.
 - `src/api/services/feature_service.py` builds runtime model feature vectors from SQLite data using training-compatible feature names, ordering, ELO logic, odds transforms, and rolling-history calculations.
 - `src/api/services/match_service.py` contains SQLAlchemy query helpers for match listing, match details, upcoming matches, and recent matches.
+
+## Android App
+
+- `android_app/` contains the Android tablet MVP application.
+- The app is a thin client over FastAPI: it does not generate ML features, does not access SQLite directly, does not run trained models locally, and does not implement reconciliation locally.
+- Implemented screens: match list, match details, and prediction result.
+- The UI uses Russian user-facing labels through display mapping helpers while keeping team names, league names, and country names unchanged.
+- Backend `prediction.created_at` values are stored as UTC and displayed by Android in the local timezone of the emulator or tablet.
+- Android Emulator should use `http://10.0.2.2:8000/`; a physical tablet should use `http://<LAN_IP>:8000/`.
 
 ## CSV Datasets
 
@@ -245,7 +256,7 @@ Load cleaned football domain data:
 python src/api/database/load_football_data.py
 ```
 
-The football loader uses `data/interim/matches_top5_2018_2025_clean.csv` as the source for domain data. It fills countries, leagues, seasons, teams, matches, match results, bookmakers, and odds. SQLite also stores ELO rating history, final deployed model metadata, and main final test metrics. `POST /predict/{match_id}` generates runtime features from SQLite instead of training feature CSV files, persists predictions and prediction characteristic values, and reuses a recent existing prediction for the same match and model to avoid short-window duplicates. Users and query history are not loaded yet.
+The football loader uses `data/interim/matches_top5_2018_2025_clean.csv` as the source for domain data. It fills countries, leagues, seasons, teams, matches, match results, bookmakers, and odds. SQLite also stores ELO rating history, final deployed model metadata, and main final test metrics. `POST /predict/{match_id}` generates runtime features from SQLite instead of training feature CSV files, persists predictions and prediction characteristic values, and reuses an existing prediction for the same `match_id` and deployed outcome `model_id`. A future retrained/deployed outcome model with a different `model_id` can create a new prediction for the same match. Users and query history are not loaded yet.
 
 ## Outcome Feature Sets
 

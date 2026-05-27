@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import datetime
 from decimal import Decimal
 
 import numpy as np
@@ -46,7 +46,6 @@ FEATURE_SETS = {
 
 BINARY_LABELS = {0: "No", 1: "Yes"}
 OUTCOME_TO_INT = {"A": 0, "D": 1, "H": 2}
-REUSE_PREDICTION_WINDOW = timedelta(minutes=10)
 
 
 def build_prediction(request: PredictionRequest) -> PredictionResponse:
@@ -90,7 +89,7 @@ def build_and_store_prediction_for_match(db: Session, match_id: int) -> Predicti
 
     feature_bundle = build_runtime_feature_bundle(db, match)
     outcome_model = stored_model_by_path(db, get_model_config("outcome")["local_model_path"])
-    existing_prediction = find_recent_prediction(db, match.id, outcome_model.id)
+    existing_prediction = find_prediction_for_match_and_model(db, match.id, outcome_model.id)
     if existing_prediction is not None:
         return build_stored_prediction_response(existing_prediction, feature_bundle.debug)
 
@@ -184,14 +183,12 @@ def get_stored_prediction(db: Session, prediction_id: int) -> PredictionDetailRe
     )
 
 
-def find_recent_prediction(db: Session, match_id: int, model_id: int) -> Prediction | None:
-    threshold = datetime.utcnow() - REUSE_PREDICTION_WINDOW
+def find_prediction_for_match_and_model(db: Session, match_id: int, model_id: int) -> Prediction | None:
     return (
         db.query(Prediction)
         .filter(
             Prediction.match_id == match_id,
             Prediction.model_id == model_id,
-            Prediction.created_at >= threshold,
         )
         .order_by(Prediction.created_at.desc())
         .first()

@@ -17,12 +17,13 @@ Implemented:
 - exact score regression pipeline;
 - priority-based consistency and reconciliation layer;
 - final app model package metadata for future backend/API;
-- initial FastAPI backend skeleton for a future Android mobile application.
+- FastAPI backend with SQLite runtime feature generation for Android/mobile usage;
+- Android tablet MVP client under `android_app/`.
 
 Not implemented yet:
 
 - other over/under models;
-- mobile application.
+- authentication and user accounts in the mobile application.
 
 ## Data Scope
 
@@ -431,6 +432,38 @@ uvicorn src.api.main:app --reload
 
 The `/predict` endpoint remains available for sample/manual JSON input. The match-based `/predict/{match_id}` flow loads final models from `models/final_app/`, reads metadata from `configs/final_app_models.json`, generates runtime features from SQLite, applies the priority-based reconciliation layer, and stores prediction outputs.
 
+Repeated `POST /predict/{match_id}` calls reuse an existing prediction when the same `match_id` and the same deployed outcome `model_id` are already stored. If the deployed outcome model changes after future retraining and receives a different `model_id`, the backend can create a new prediction for the same match. This avoids duplicate `prediction_characteristic_values` for repeated requests while preserving old predictions.
+
+## Android Tablet MVP
+
+The Android MVP lives under:
+
+```text
+android_app/
+```
+
+It is a thin Kotlin + Jetpack Compose client for the FastAPI backend:
+
+- it does not calculate ML features;
+- it does not access SQLite directly;
+- it does not run trained models locally;
+- it calls FastAPI endpoints through Retrofit.
+
+Implemented screens:
+
+- match list;
+- match details;
+- prediction result.
+
+The Android UI maps technical backend values such as `H / D / A`, `Yes / No`, match statuses, and bookmaker/source names to Russian user-facing labels. Team names, league names, and country names are kept as returned by the backend.
+
+Prediction timestamps are stored by the backend as UTC `created_at` values. Android treats backend `created_at` as UTC and displays it in the local timezone of the emulator or physical tablet. The device timezone affects display only.
+
+Backend URL defaults:
+
+- Android Emulator: `http://10.0.2.2:8000/`;
+- physical tablet: `http://<LAN_IP>:8000/`.
+
 ## SQLite Database Layer
 
 The initial SQLite database layer lives under:
@@ -485,6 +518,14 @@ The ELO loader uses `data/raw/EloRatings.csv` as its primary source and keeps th
 
 It fills countries, leagues, seasons, teams, matches, match results, bookmakers, and odds. SQLite also stores ELO rating history and lightweight metadata for the final deployed ML models and their main test metrics.
 
-`POST /predict/{match_id}` builds model feature vectors from SQLite match, odds, ELO, and rolling match history, calls the existing final models, applies the reconciliation layer, stores the prediction, and returns the final user-facing JSON. Recent repeated calls for the same match and model reuse the stored prediction instead of creating duplicates. Users and query history are not loaded yet.
+`POST /predict/{match_id}` builds model feature vectors from SQLite match, odds, ELO, and rolling match history, calls the existing final models, applies the reconciliation layer, stores the prediction, and returns the final user-facing JSON. Repeated calls for the same match and deployed outcome model reuse the stored prediction instead of creating duplicates. Users and query history are not loaded yet.
+
+Development-only runtime cleanup:
+
+```bash
+python src/api/database/clear_runtime_data.py
+```
+
+This script clears only runtime/demo tables: `users`, `user_query_history`, `predictions`, and `prediction_characteristic_values`. It does not delete football domain data, odds, teams, leagues, seasons, model metadata, model metrics, or ELO ratings.
 
 Runtime feature generation for `POST /predict/{match_id}` lives in `src/api/services/feature_service.py`. It uses SQLite as the runtime source and builds the same deployed feature sets used by the final models: `v1_only`, `v1_score_related`, and `v1_yellow_related`. The service follows the training feature names and ordering from `src/features/feature_registry.py`, reuses the same ELO, odds transform, and rolling-history formulas, and reports debug checks for feature count, missing values, NaN values, and ordering.
