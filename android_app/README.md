@@ -9,9 +9,13 @@ The Android application is a thin client. It must not train models, generate ML 
 - match browsing: `GET /matches`, `GET /matches/{match_id}`, `GET /matches/upcoming`, `GET /matches/recent`;
 - prediction: `POST /predict/{match_id}`;
 - stored prediction details: `GET /predictions/{prediction_id}`;
+- auth: `POST /auth/register`, `POST /auth/login`, `GET /auth/me`;
+- authenticated history: `GET /users/me/history`;
 - metadata and diagnostics: `GET /models`, `GET /health`, `GET /db/health`.
 
 Repeated prediction requests are deduplicated by the backend for the same `match_id` and deployed outcome `model_id`. Android can safely call `POST /predict/{match_id}` again without creating duplicate prediction characteristic rows for the same deployed model.
+
+Authenticated prediction requests add rows to `user_query_history`. This table stores user actions, so repeated requests can create multiple rows for the same stored prediction. The Android history screen sorts by `query_date` descending and shows only the latest row per `prediction_id`.
 
 ## Android Studio Setup
 
@@ -25,11 +29,11 @@ Recommended options:
 - Package name: `com.predictionfootball.app`;
 - Open/import this folder as an existing Gradle project: `android_app/`.
 
-This scaffold intentionally avoids Gradle wrapper files. Android Studio can create or sync the wrapper when the Android project is opened.
+This folder is an existing Gradle project with its own Gradle wrapper. Open/import `android_app/` in Android Studio and use the normal Run action after the FastAPI backend is running.
 
 ## Dependencies
 
-Planned MVP dependencies are already declared in `gradle/libs.versions.toml` and `app/build.gradle.kts`:
+MVP dependencies are declared in `gradle/libs.versions.toml` and `app/build.gradle.kts`:
 
 - Jetpack Compose;
 - Material3;
@@ -56,7 +60,7 @@ com.predictionfootball.app
 Recommended responsibilities:
 
 - `models`: DTOs that mirror FastAPI response schemas.
-- `network`: Retrofit client, service interface, and repository wrapper.
+- `network`: Retrofit client, service interface, auth token store, auth repository, and prediction repository.
 - `ui/DisplayMappings.kt`: maps technical backend values to Russian user-facing labels.
 - `navigation`: Compose navigation graph and route definitions.
 - `ui/components`: shared cards, loading, error, and action components.
@@ -69,14 +73,19 @@ Recommended responsibilities:
 MVP navigation:
 
 ```text
-MatchList -> MatchDetails -> PredictionResult
+Splash -> Login/Register -> MatchList -> MatchDetails -> PredictionResult
+MatchList -> Profile -> History
 ```
 
 Screen goals:
 
-- Match List: tabs or segmented control for Upcoming, Recent, All.
+- Splash: short startup screen that validates a stored token with `GET /auth/me`.
+- Login/Register: FastAPI auth flow with validation and temporary Toast error messages.
+- Match List: Recent/Upcoming switch plus league and season filters with `All`.
 - Match Details: teams, league, date, status, result if available, latest odds.
 - Prediction Result: final reconciled prediction from `POST /predict/{match_id}`.
+- Profile: current user details and logout.
+- History: latest visible row per `prediction_id`, prediction characteristics, and comparison with factual result when the match is finished.
 
 For tablet layout, prefer a list-detail layout on wide screens:
 
@@ -90,6 +99,18 @@ Implemented Retrofit service shape:
 
 ```kotlin
 interface PredictionApiService {
+    @POST("auth/register")
+    suspend fun register(...): AuthUserDto
+
+    @POST("auth/login")
+    suspend fun login(...): AuthTokenDto
+
+    @GET("auth/me")
+    suspend fun me(): AuthUserDto
+
+    @GET("users/me/history")
+    suspend fun history(): List<PredictionHistoryDto>
+
     @GET("matches/upcoming")
     suspend fun getUpcomingMatches(...): List<MatchSummaryDto>
 
@@ -107,6 +128,20 @@ interface PredictionApiService {
 The backend can return technical values such as `H`, `D`, `A`, `Yes`, `No`, `Finished`, or `Market Average`. Android keeps these values unchanged in DTOs and maps them only in the UI layer to Russian user-facing labels.
 
 Backend `prediction.created_at` values are stored as UTC. Android treats `created_at` as UTC and displays it in the local timezone of the emulator or physical tablet. The device timezone affects display only.
+
+Auth token flow:
+
+- login stores the JWT access token in `SharedPreferences`;
+- Retrofit/OkHttp adds `Authorization: Bearer <token>` outside composables;
+- Splash validates the token through `/auth/me`;
+- `401` or `403` clears the token and returns the user to login;
+- logout clears the token and resets the navigation stack.
+
+Credential validation is duplicated client-side for UX and enforced server-side:
+
+- username: only Latin letters, digits, `_`, and `-`;
+- email: ASCII email format, no Cyrillic characters;
+- password: at least 8 printable ASCII characters, at least one Latin letter, and at least one digit; special characters are allowed.
 
 Emulator base URL:
 
@@ -146,6 +181,19 @@ Install on a running emulator:
 
 ```bash
 ./gradlew :app:installDebug
+```
+
+Android Studio Run:
+
+1. Start the backend separately.
+2. Open `android_app/` in Android Studio.
+3. Select an emulator or physical tablet.
+4. Press Run.
+
+For a physical tablet, use the laptop LAN IP and rebuild with:
+
+```bash
+./gradlew :app:assembleDebug -PapiBaseUrl=http://<LAN_IP>:8000/
 ```
 
 ## MVP Constraints

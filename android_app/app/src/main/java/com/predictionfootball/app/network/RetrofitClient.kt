@@ -23,6 +23,22 @@ object RetrofitClient {
             }
         }
         val client = OkHttpClient.Builder()
+            .addInterceptor { chain ->
+                val token = AuthTokenStore.getAccessToken()
+                val request = if (token != null) {
+                    chain.request()
+                        .newBuilder()
+                        .addHeader("Authorization", "Bearer $token")
+                        .build()
+                } else {
+                    chain.request()
+                }
+                val response = chain.proceed(request)
+                if (response.code == 401 || response.code == 403) {
+                    AuthTokenStore.clearAccessToken()
+                }
+                response
+            }
             .addInterceptor(logging)
             .build()
 

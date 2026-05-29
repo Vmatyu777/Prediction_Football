@@ -17,6 +17,13 @@ fun displayOutcome(value: String): String = when (value.trim().uppercase(Locale.
     else -> value
 }
 
+fun displayOutcomeLong(value: String): String = when (value.trim().uppercase(Locale.ROOT)) {
+    "H" -> "Победа хозяев"
+    "D" -> "Ничья"
+    "A" -> "Победа гостей"
+    else -> value
+}
+
 fun displayBinaryLabel(value: String): String = when (value.trim().lowercase(Locale.ROOT)) {
     "yes" -> "Да"
     "no" -> "Нет"

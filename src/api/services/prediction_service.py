@@ -5,7 +5,7 @@ from decimal import Decimal
 
 import numpy as np
 import pandas as pd
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from src.api.database.models import (
     Match,
@@ -13,10 +13,13 @@ from src.api.database.models import (
     Prediction,
     PredictionCharacteristic,
     PredictionCharacteristicValue,
+    UserQueryHistory,
 )
 from src.api.schemas import (
+    MatchResultResponse,
     PredictionCharacteristicResponse,
     PredictionDetailResponse,
+    PredictionHistoryResponse,
     PredictionRequest,
     PredictionResponse,
     PredictionStoredResponse,
@@ -80,7 +83,11 @@ def build_prediction(request: PredictionRequest) -> PredictionResponse:
     )
 
 
-def build_and_store_prediction_for_match(db: Session, match_id: int) -> PredictionStoredResponse:
+def build_and_store_prediction_for_match(
+    db: Session,
+    match_id: int,
+    user_id: int | None = None,
+) -> PredictionStoredResponse:
     match = db.query(Match).filter(Match.id == match_id).first()
     if match is None:
         raise ValueError(f"Match not found: {match_id}")
@@ -91,10 +98,14 @@ def build_and_store_prediction_for_match(db: Session, match_id: int) -> Predicti
     outcome_model = stored_model_by_path(db, get_model_config("outcome")["local_model_path"])
     existing_prediction = find_prediction_for_match_and_model(db, match.id, outcome_model.id)
     if existing_prediction is not None:
+        add_user_query_history(db, user_id, existing_prediction.id)
+        if user_id is not None:
+            db.commit()
         return build_stored_prediction_response(existing_prediction, feature_bundle.debug)
 
     response = build_prediction_from_runtime_features(feature_bundle)
     prediction = store_prediction(db, match, response)
+    add_user_query_history(db, user_id, prediction.id)
     db.commit()
     return PredictionStoredResponse(
         prediction_id=prediction.id,
@@ -183,6 +194,69 @@ def get_stored_prediction(db: Session, prediction_id: int) -> PredictionDetailRe
     )
 
 
+def get_user_prediction_history(db: Session, user_id: int) -> list[PredictionHistoryResponse]:
+    rows = (
+        db.query(UserQueryHistory)
+        .options(
+            joinedload(UserQueryHistory.prediction)
+            .joinedload(Prediction.match)
+            .joinedload(Match.home_team),
+            joinedload(UserQueryHistory.prediction)
+            .joinedload(Prediction.match)
+            .joinedload(Match.away_team),
+            joinedload(UserQueryHistory.prediction)
+            .joinedload(Prediction.match)
+            .joinedload(Match.season),
+        )
+        .join(UserQueryHistory.prediction)
+        .filter(UserQueryHistory.user_id == user_id)
+        .order_by(UserQueryHistory.query_date.desc(), UserQueryHistory.id.desc())
+        .all()
+    )
+
+    return [build_prediction_history_response(row) for row in rows]
+
+
+def build_prediction_history_response(row: UserQueryHistory) -> PredictionHistoryResponse:
+    prediction = row.prediction
+    match = prediction.match
+    characteristics = {value.characteristic.name: value for value in prediction.characteristic_values}
+    btts = characteristics.get("BTTS")
+    over25 = characteristics.get("Over2.5")
+    corners = characteristics.get("Corners Over9.5")
+    yellow_cards = characteristics.get("Yellow Cards Over3.5")
+    exact_score = characteristics.get("Exact Score")
+    return PredictionHistoryResponse(
+        id=row.id,
+        query_date=row.query_date,
+        prediction_id=prediction.id,
+        match_id=prediction.match_id,
+        match_date=match.match_date,
+        league=match.season.league.name,
+        season=match.season.name,
+        home_team=match.home_team.name,
+        away_team=match.away_team.name,
+        prediction_created_at=prediction.created_at,
+        outcome={0: "A", 1: "D", 2: "H"}[prediction.predicted_outcome],
+        btts=btts.predicted_value if btts is not None else None,
+        over25=over25.predicted_value if over25 is not None else None,
+        corners_over95=corners.predicted_value if corners is not None else None,
+        yellow_cards_over35=yellow_cards.predicted_value if yellow_cards is not None else None,
+        exact_score=exact_score.predicted_value if exact_score is not None else None,
+        result=(
+            MatchResultResponse(
+                actual_outcome=match.result.actual_outcome,
+                home_goals=match.result.home_goals,
+                away_goals=match.result.away_goals,
+                total_corners=match.result.total_corners,
+                total_yellow_cards=match.result.total_yellow_cards,
+            )
+            if match.result is not None
+            else None
+        ),
+    )
+
+
 def find_prediction_for_match_and_model(db: Session, match_id: int, model_id: int) -> Prediction | None:
     return (
         db.query(Prediction)
@@ -192,6 +266,18 @@ def find_prediction_for_match_and_model(db: Session, match_id: int, model_id: in
         )
         .order_by(Prediction.created_at.desc())
         .first()
+    )
+
+
+def add_user_query_history(db: Session, user_id: int | None, prediction_id: int) -> None:
+    if user_id is None:
+        return
+    db.add(
+        UserQueryHistory(
+            query_date=datetime.utcnow(),
+            user_id=user_id,
+            prediction_id=prediction_id,
+        )
     )
 
 

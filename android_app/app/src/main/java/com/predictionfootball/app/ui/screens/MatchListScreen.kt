@@ -11,11 +11,17 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -40,16 +46,24 @@ import com.predictionfootball.app.viewmodel.UiState
 fun MatchListRoute(
     viewModel: MatchListViewModel,
     onMatchClick: (Long) -> Unit,
+    onProfileClick: () -> Unit,
 ) {
     val state by viewModel.state.collectAsState()
     val mode by viewModel.mode.collectAsState()
+    val selectedLeague by viewModel.selectedLeague.collectAsState()
+    val selectedSeason by viewModel.selectedSeason.collectAsState()
 
     MatchListScreen(
         state = state,
         selectedMode = mode,
+        selectedLeague = selectedLeague,
+        selectedSeason = selectedSeason,
         onModeChange = viewModel::loadMatches,
+        onLeagueChange = viewModel::selectLeague,
+        onSeasonChange = viewModel::selectSeason,
         onRetry = { viewModel.loadMatches() },
         onMatchClick = onMatchClick,
+        onProfileClick = onProfileClick,
     )
 }
 
@@ -57,13 +71,23 @@ fun MatchListRoute(
 fun MatchListScreen(
     state: UiState<List<MatchSummaryDto>>,
     selectedMode: MatchListMode,
+    selectedLeague: String?,
+    selectedSeason: String?,
     onModeChange: (MatchListMode) -> Unit,
+    onLeagueChange: (String?) -> Unit,
+    onSeasonChange: (String?) -> Unit,
     onRetry: () -> Unit,
     onMatchClick: (Long) -> Unit,
+    onProfileClick: () -> Unit,
 ) {
     ScreenScaffold(
         title = stringResource(R.string.football_matches),
         subtitle = stringResource(R.string.match_list_subtitle),
+        actions = {
+            OutlinedButton(onClick = onProfileClick) {
+                Text("Профиль")
+            }
+        },
     ) {
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             MatchListMode.entries.forEach { mode ->
@@ -74,17 +98,97 @@ fun MatchListScreen(
                 )
             }
         }
+        if (state is UiState.Success) {
+            Spacer(modifier = Modifier.height(12.dp))
+            FilterRow(
+                matches = state.data,
+                selectedLeague = selectedLeague,
+                selectedSeason = selectedSeason,
+                onLeagueChange = onLeagueChange,
+                onSeasonChange = onSeasonChange,
+            )
+        }
         Spacer(modifier = Modifier.height(16.dp))
 
         when (state) {
             UiState.Loading -> LoadingContent(stringResource(R.string.loading_matches))
             is UiState.Error -> ErrorContent(message = state.message, onRetry = onRetry)
             is UiState.Success -> MatchList(
-                matches = state.data,
+                matches = state.data.filterBy(selectedLeague, selectedSeason),
                 selectedMode = selectedMode,
                 onMatchClick = onMatchClick,
             )
         }
+    }
+}
+
+@Composable
+private fun FilterRow(
+    matches: List<MatchSummaryDto>,
+    selectedLeague: String?,
+    selectedSeason: String?,
+    onLeagueChange: (String?) -> Unit,
+    onSeasonChange: (String?) -> Unit,
+) {
+    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        FilterMenu(
+            label = "Лига",
+            selectedValue = selectedLeague,
+            options = matches.map { it.league }.distinct().sorted(),
+            onValueChange = onLeagueChange,
+        )
+        FilterMenu(
+            label = "Сезон",
+            selectedValue = selectedSeason,
+            options = matches.map { it.season }.distinct().sortedDescending(),
+            onValueChange = onSeasonChange,
+        )
+    }
+}
+
+@Composable
+private fun FilterMenu(
+    label: String,
+    selectedValue: String?,
+    options: List<String>,
+    onValueChange: (String?) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+
+    Column {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        OutlinedButton(onClick = { expanded = true }) {
+            Text(selectedValue ?: "Все")
+        }
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            DropdownMenuItem(
+                text = { Text("Все") },
+                onClick = {
+                    onValueChange(null)
+                    expanded = false
+                },
+            )
+            options.forEach { option ->
+                DropdownMenuItem(
+                    text = { Text(option) },
+                    onClick = {
+                        onValueChange(option)
+                        expanded = false
+                    },
+                )
+            }
+        }
+    }
+}
+
+private fun List<MatchSummaryDto>.filterBy(league: String?, season: String?): List<MatchSummaryDto> {
+    return filter { match ->
+        (league == null || match.league == league) &&
+            (season == null || match.season == season)
     }
 }
 
@@ -176,9 +280,14 @@ private fun MatchListScreenPreview() {
         MatchListScreen(
             state = UiState.Success(sampleMatches()),
             selectedMode = MatchListMode.Recent,
+            selectedLeague = null,
+            selectedSeason = null,
             onModeChange = {},
+            onLeagueChange = {},
+            onSeasonChange = {},
             onRetry = {},
             onMatchClick = {},
+            onProfileClick = {},
         )
     }
 }

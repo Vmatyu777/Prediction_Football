@@ -1,8 +1,14 @@
 from __future__ import annotations
 
 from datetime import datetime
+import re
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
+
+
+EMAIL_PATTERN = re.compile(r"^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$")
+USERNAME_PATTERN = re.compile(r"^[A-Za-z0-9_-]+$")
+LATIN_PASSWORD_PATTERN = re.compile(r"^[\x21-\x7E]+$")
 
 
 class HealthResponse(BaseModel):
@@ -127,3 +133,79 @@ class PredictionDetailResponse(BaseModel):
     draw_probability: float
     away_win_probability: float
     characteristics: list[PredictionCharacteristicResponse]
+
+
+class RegisterRequest(BaseModel):
+    username: str = Field(max_length=50)
+    email: str = Field(min_length=5, max_length=100)
+    password: str = Field(max_length=128)
+
+    @field_validator("username")
+    @classmethod
+    def validate_username(cls, value: str) -> str:
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("Username is required")
+        if not USERNAME_PATTERN.match(normalized):
+            raise ValueError("Username may contain only Latin letters, digits, underscore, and hyphen")
+        return normalized
+
+    @field_validator("email")
+    @classmethod
+    def validate_email(cls, value: str) -> str:
+        normalized = value.strip().lower()
+        if not EMAIL_PATTERN.match(normalized):
+            raise ValueError("Invalid email")
+        return normalized
+
+    @field_validator("password")
+    @classmethod
+    def validate_password(cls, value: str) -> str:
+        if len(value) < 8:
+            raise ValueError("Password must contain at least 8 characters, a Latin letter, and a digit")
+        if not LATIN_PASSWORD_PATTERN.match(value):
+            raise ValueError("Password must contain at least 8 characters, a Latin letter, and a digit")
+        if not any("A" <= character <= "Z" or "a" <= character <= "z" for character in value):
+            raise ValueError("Password must contain at least 8 characters, a Latin letter, and a digit")
+        if not any(character.isdigit() for character in value):
+            raise ValueError("Password must contain at least 8 characters, a Latin letter, and a digit")
+        return value
+
+
+class LoginRequest(BaseModel):
+    username_or_email: str = Field(min_length=3, max_length=100)
+    password: str = Field(min_length=1, max_length=128)
+
+
+class AuthUserResponse(BaseModel):
+    id: int
+    username: str
+    email: str
+    role: str
+    created_at: datetime
+
+
+class AuthTokenResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    user: AuthUserResponse
+
+
+class PredictionHistoryResponse(BaseModel):
+    id: int
+    query_date: datetime
+    prediction_id: int
+    match_id: int
+    match_date: datetime
+    league: str
+    season: str
+    home_team: str
+    away_team: str
+    prediction_created_at: datetime
+    outcome: str
+    btts: str | None
+    over25: str | None
+    corners_over95: str | None
+    yellow_cards_over35: str | None
+    exact_score: str | None
+    result: MatchResultResponse | None

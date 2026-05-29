@@ -6,9 +6,10 @@ This document gives a short engineering overview of the current project artifact
 
 - `docs/final_app_models.md` describes the final local model package for future backend/API usage: final tasks, model types, feature sets, local model paths, thresholds, post-processing, and final test metrics.
 - `configs/final_app_models.json` stores machine-readable backend metadata for final model paths, feature-set names, thresholds, reconciliation priority order, and exact-score clipping range.
-- `src/api/` contains the initial FastAPI backend skeleton for a future Android mobile application.
+- `src/api/` contains the FastAPI backend for the Android mobile application, including auth endpoints, match browsing, prediction, persisted prediction details, and user prediction history.
 - `src/api/database/` contains the initial SQLite physical database layer for backend persistence.
 - `android_app/` contains the Android tablet MVP client. It is a Kotlin + Jetpack Compose thin client that calls FastAPI through Retrofit and does not run ML models, calculate ML features, or access SQLite directly.
+- `requirements.txt` pins the Python runtime dependencies used by the backend, model loading, and auth flow.
 
 ## Python Scripts
 
@@ -33,7 +34,8 @@ This document gives a short engineering overview of the current project artifact
 - `src/deployment/prepare_final_app_models.py` rebuilds the local final app model package from already selected trained artifacts and refreshes `configs/final_app_models.json` without retraining.
 - `src/api/main.py` creates the FastAPI app and exposes health, model metadata, match browsing, match-based prediction, and persisted prediction endpoints.
 - `src/api/config.py` stores backend paths and API metadata.
-- `src/api/schemas.py` stores Pydantic request and response schemas.
+- `src/api/schemas.py` stores Pydantic request and response schemas, including auth validation rules for username, email, and password.
+- `src/api/services/auth_service.py` contains password hashing, JWT token creation/validation, current-user dependencies, registration, and login helpers.
 - `src/api/services/model_registry.py` reads `configs/final_app_models.json` and loads final local model binaries from `models/final_app/`.
 - `src/api/services/prediction_service.py` contains model inference, exact-score clipping, reconciliation, prediction persistence, and model-aware prediction reuse by `match_id` plus deployed outcome `model_id`.
 - `src/api/database/clear_runtime_data.py` is a development-only cleanup script for runtime/demo data. It clears `users`, `user_query_history`, `predictions`, and `prediction_characteristic_values` while preserving football domain data, odds, teams, model metadata, metrics, and ELO ratings.
@@ -51,10 +53,13 @@ This document gives a short engineering overview of the current project artifact
 
 - `android_app/` contains the Android tablet MVP application.
 - The app is a thin client over FastAPI: it does not generate ML features, does not access SQLite directly, does not run trained models locally, and does not implement reconciliation locally.
-- Implemented screens: match list, match details, and prediction result.
+- Implemented screens: splash, login, registration, match list, match details, prediction result, profile, and prediction history.
+- The app stores JWT tokens in `SharedPreferences`, attaches them as bearer tokens through OkHttp, validates them on splash with `GET /auth/me`, and clears them on logout or `401`/`403`.
+- The match list supports league and season filters. The prediction history screen displays the latest user query per `prediction_id`, compares completed-match predictions with factual results, and hides internal database IDs from users.
 - The UI uses Russian user-facing labels through display mapping helpers while keeping team names, league names, and country names unchanged.
 - Backend `prediction.created_at` values are stored as UTC and displayed by Android in the local timezone of the emulator or tablet.
 - Android Emulator should use `http://10.0.2.2:8000/`; a physical tablet should use `http://<LAN_IP>:8000/`.
+- Override the backend URL for a physical device with `-PapiBaseUrl=http://<LAN_IP>:8000/`.
 
 ## CSV Datasets
 
@@ -210,6 +215,10 @@ Endpoints:
 - `GET /health` returns service status.
 - `GET /db/health` checks SQLite connectivity.
 - `GET /models` returns final model metadata for each configured task.
+- `POST /auth/register` creates a user with a bcrypt password hash.
+- `POST /auth/login` returns a JWT bearer token.
+- `GET /auth/me` validates and returns the current user.
+- `GET /users/me/history` returns authenticated prediction query history.
 - `POST /predict` returns a unified prediction response for sample/manual JSON input.
 - `GET /matches` returns paginated real matches from SQLite with optional league, season, and date filters.
 - `GET /matches/{match_id}` returns match details with teams, result, and odds.
@@ -256,7 +265,15 @@ Load cleaned football domain data:
 python src/api/database/load_football_data.py
 ```
 
-The football loader uses `data/interim/matches_top5_2018_2025_clean.csv` as the source for domain data. It fills countries, leagues, seasons, teams, matches, match results, bookmakers, and odds. SQLite also stores ELO rating history, final deployed model metadata, and main final test metrics. `POST /predict/{match_id}` generates runtime features from SQLite instead of training feature CSV files, persists predictions and prediction characteristic values, and reuses an existing prediction for the same `match_id` and deployed outcome `model_id`. A future retrained/deployed outcome model with a different `model_id` can create a new prediction for the same match. Users and query history are not loaded yet.
+The football loader uses `data/interim/matches_top5_2018_2025_clean.csv` as the source for domain data. It fills countries, leagues, seasons, teams, matches, match results, bookmakers, and odds. SQLite also stores ELO rating history, final deployed model metadata, and main final test metrics. `POST /predict/{match_id}` generates runtime features from SQLite instead of training feature CSV files, persists predictions and prediction characteristic values, and reuses an existing prediction for the same `match_id` and deployed outcome `model_id`. A future retrained/deployed outcome model with a different `model_id` can create a new prediction for the same match. Authenticated requests add rows to `user_query_history`; this table stores user actions and can contain several rows for the same `prediction_id`.
+
+Development-only cleanup:
+
+```bash
+python src/api/database/clear_runtime_data.py
+```
+
+This script clears `users`, `user_query_history`, `predictions`, and `prediction_characteristic_values` while preserving football domain data, model metadata, metrics, odds, and ELO ratings.
 
 ## Outcome Feature Sets
 

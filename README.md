@@ -18,12 +18,13 @@ Implemented:
 - priority-based consistency and reconciliation layer;
 - final app model package metadata for future backend/API;
 - FastAPI backend with SQLite runtime feature generation for Android/mobile usage;
-- Android tablet MVP client under `android_app/`.
+- Android tablet MVP client under `android_app/`;
+- mobile authentication flow with registration, login, JWT token storage, profile, and prediction history.
 
 Not implemented yet:
 
-- other over/under models;
-- authentication and user accounts in the mobile application.
+- other over/under models beyond the finalized diploma scope;
+- advanced account features such as OAuth, refresh tokens, password reset, or email confirmation.
 
 ## Data Scope
 
@@ -416,6 +417,10 @@ Available endpoints:
 - `GET /health`;
 - `GET /db/health`;
 - `GET /models`;
+- `POST /auth/register`;
+- `POST /auth/login`;
+- `GET /auth/me`;
+- `GET /users/me/history`;
 - `GET /matches`;
 - `GET /matches/{match_id}`;
 - `GET /matches/upcoming`;
@@ -430,9 +435,37 @@ Run the backend locally:
 uvicorn src.api.main:app --reload
 ```
 
+For Android emulator or physical tablet testing, bind the backend to all interfaces:
+
+```bash
+uvicorn src.api.main:app --host 0.0.0.0 --port 8000 --reload
+```
+
+Install Python runtime dependencies with:
+
+```bash
+pip install -r requirements.txt
+```
+
+The pinned backend/auth stack includes FastAPI, Uvicorn, Pydantic, SQLAlchemy, pandas, NumPy, scikit-learn, CatBoost, PyJWT, `passlib[bcrypt]`, and `bcrypt==4.0.1`.
+
 The `/predict` endpoint remains available for sample/manual JSON input. The match-based `/predict/{match_id}` flow loads final models from `models/final_app/`, reads metadata from `configs/final_app_models.json`, generates runtime features from SQLite, applies the priority-based reconciliation layer, and stores prediction outputs.
 
 Repeated `POST /predict/{match_id}` calls reuse an existing prediction when the same `match_id` and the same deployed outcome `model_id` are already stored. If the deployed outcome model changes after future retraining and receives a different `model_id`, the backend can create a new prediction for the same match. This avoids duplicate `prediction_characteristic_values` for repeated requests while preserving old predictions.
+
+Authentication uses short-lived MVP JWT bearer tokens:
+
+- `POST /auth/register` creates a user with a bcrypt password hash.
+- `POST /auth/login` returns an access token.
+- Android stores the token in `SharedPreferences` and sends `Authorization: Bearer <token>` through an OkHttp interceptor.
+- `GET /auth/me` validates the current token for Splash/profile startup.
+- `GET /users/me/history` returns the authenticated user's prediction query history.
+
+Credential validation rules:
+
+- username: only Latin letters, digits, `_`, and `-`;
+- email: ASCII email format, no Cyrillic characters;
+- password: at least 8 printable ASCII characters, at least one Latin letter, and at least one digit; special characters are allowed.
 
 ## Android Tablet MVP
 
@@ -451,9 +484,16 @@ It is a thin Kotlin + Jetpack Compose client for the FastAPI backend:
 
 Implemented screens:
 
+- splash screen with token validation;
+- login;
+- registration;
 - match list;
 - match details;
-- prediction result.
+- prediction result;
+- profile;
+- prediction history.
+
+The match list includes league and season filters with an `All` option. The history screen shows unique predictions without visual duplicates: rows are sorted by `query_date` descending and then grouped by `prediction_id`, so the latest user action is shown for each stored prediction. For completed matches, Android compares prediction characteristics with the factual result.
 
 The Android UI maps technical backend values such as `H / D / A`, `Yes / No`, match statuses, and bookmaker/source names to Russian user-facing labels. Team names, league names, and country names are kept as returned by the backend.
 
@@ -463,6 +503,15 @@ Backend URL defaults:
 
 - Android Emulator: `http://10.0.2.2:8000/`;
 - physical tablet: `http://<LAN_IP>:8000/`.
+
+The debug build reads `BuildConfig.API_BASE_URL`. The default is the emulator URL. For a physical Android tablet on the same LAN, build with:
+
+```bash
+cd android_app
+./gradlew :app:assembleDebug -PapiBaseUrl=http://<LAN_IP>:8000/
+```
+
+`10.0.2.2` works only in Android Emulator. A physical tablet must use the laptop's LAN IP address and the backend must listen on `0.0.0.0:8000`.
 
 ## SQLite Database Layer
 
@@ -518,7 +567,9 @@ The ELO loader uses `data/raw/EloRatings.csv` as its primary source and keeps th
 
 It fills countries, leagues, seasons, teams, matches, match results, bookmakers, and odds. SQLite also stores ELO rating history and lightweight metadata for the final deployed ML models and their main test metrics.
 
-`POST /predict/{match_id}` builds model feature vectors from SQLite match, odds, ELO, and rolling match history, calls the existing final models, applies the reconciliation layer, stores the prediction, and returns the final user-facing JSON. Repeated calls for the same match and deployed outcome model reuse the stored prediction instead of creating duplicates. Users and query history are not loaded yet.
+`POST /predict/{match_id}` builds model feature vectors from SQLite match, odds, ELO, and rolling match history, calls the existing final models, applies the reconciliation layer, stores the prediction, and returns the final user-facing JSON. Repeated calls for the same match and deployed outcome model reuse the stored prediction instead of creating duplicates.
+
+When the request includes a valid bearer token, the backend stores a `user_query_history` row. This table is an action log: repeated user requests can create multiple history rows for the same `prediction_id`, while Android displays only the latest row per prediction to avoid visual duplicates.
 
 Development-only runtime cleanup:
 

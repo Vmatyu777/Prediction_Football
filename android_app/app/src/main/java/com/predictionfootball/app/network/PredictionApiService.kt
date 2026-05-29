@@ -1,14 +1,32 @@
 package com.predictionfootball.app.network
 
+import com.predictionfootball.app.models.AuthTokenDto
+import com.predictionfootball.app.models.AuthUserDto
+import com.predictionfootball.app.models.LoginRequestDto
 import com.predictionfootball.app.models.MatchDetailDto
 import com.predictionfootball.app.models.MatchSummaryDto
 import com.predictionfootball.app.models.PredictionDto
+import com.predictionfootball.app.models.PredictionHistoryDto
+import com.predictionfootball.app.models.RegisterRequestDto
+import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.POST
 import retrofit2.http.Path
 import retrofit2.http.Query
 
 interface PredictionApiService {
+    @POST("auth/register")
+    suspend fun register(@Body request: RegisterRequestDto): AuthUserDto
+
+    @POST("auth/login")
+    suspend fun login(@Body request: LoginRequestDto): AuthTokenDto
+
+    @GET("auth/me")
+    suspend fun me(): AuthUserDto
+
+    @GET("users/me/history")
+    suspend fun history(): List<PredictionHistoryDto>
+
     @GET("matches/recent")
     suspend fun getRecentMatches(
         @Query("limit") limit: Int = 50,

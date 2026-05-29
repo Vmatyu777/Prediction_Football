@@ -24,6 +24,12 @@ class MatchListViewModel(
     private val _mode = MutableStateFlow(MatchListMode.Recent)
     val mode: StateFlow<MatchListMode> = _mode.asStateFlow()
 
+    private val _selectedLeague = MutableStateFlow<String?>(null)
+    val selectedLeague: StateFlow<String?> = _selectedLeague.asStateFlow()
+
+    private val _selectedSeason = MutableStateFlow<String?>(null)
+    val selectedSeason: StateFlow<String?> = _selectedSeason.asStateFlow()
+
     init {
         loadMatches(MatchListMode.Recent)
     }
@@ -43,5 +49,13 @@ class MatchListViewModel(
                 _state.value = UiState.Error(error.message ?: "Unable to load matches")
             }
         }
+    }
+
+    fun selectLeague(league: String?) {
+        _selectedLeague.value = league
+    }
+
+    fun selectSeason(season: String?) {
+        _selectedSeason.value = season
     }
 }

@@ -123,9 +123,40 @@ private fun PredictionContent(prediction: PredictionDto) {
 @Composable
 private fun ProbabilityRow(probabilities: Map<String, Double>) {
     Spacer(modifier = Modifier.height(8.dp))
-    probabilities.entries.sortedBy { it.key }.forEach { (label, value) ->
-        KeyValueRow(label = displayProbabilityLabel(label), value = "${(value * 100).toInt()}%")
+    normalizedPercentages(probabilities).forEach { (label, percent) ->
+        KeyValueRow(label = displayProbabilityLabel(label), value = "$percent%")
     }
+}
+
+internal fun normalizedPercentages(probabilities: Map<String, Double>): List<Pair<String, Int>> {
+    if (probabilities.isEmpty()) {
+        return emptyList()
+    }
+
+    val ordered = probabilities.entries.sortedBy { it.key }
+    val rawPercentages = ordered.map { (_, value) -> value.coerceAtLeast(0.0) * 100.0 }
+    val floored = rawPercentages.map { it.toInt() }.toMutableList()
+    val difference = 100 - floored.sum()
+    val fractionalOrder = rawPercentages
+        .mapIndexed { index, value -> index to (value - value.toInt()) }
+        .sortedWith(compareByDescending<Pair<Int, Double>> { it.second }.thenBy { it.first })
+
+    if (difference > 0) {
+        repeat(difference) { step ->
+            val index = fractionalOrder[step % fractionalOrder.size].first
+            floored[index] += 1
+        }
+    } else if (difference < 0) {
+        val reverseFractionalOrder = fractionalOrder.asReversed()
+        repeat(-difference) { step ->
+            val index = reverseFractionalOrder[step % reverseFractionalOrder.size].first
+            if (floored[index] > 0) {
+                floored[index] -= 1
+            }
+        }
+    }
+
+    return ordered.mapIndexed { index, entry -> entry.key to floored[index] }
 }
 
 @Preview(showBackground = true, widthDp = 900)
