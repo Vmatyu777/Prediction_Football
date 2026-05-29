@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import date, datetime
 from decimal import Decimal
 
-from sqlalchemy import Boolean, CheckConstraint, Date, DateTime, ForeignKey, Integer, Numeric, String
+from sqlalchemy import Boolean, CheckConstraint, Date, DateTime, ForeignKey, Integer, Numeric, SmallInteger, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.api.database.session import Base
@@ -106,11 +106,11 @@ class MatchResult(Base):
     __table_args__ = (CheckConstraint("actual_outcome in (0, 1, 2)", name="ck_match_results_actual_outcome"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    actual_outcome: Mapped[int] = mapped_column(Integer, nullable=False)
-    home_goals: Mapped[int] = mapped_column(Integer, nullable=False)
-    away_goals: Mapped[int] = mapped_column(Integer, nullable=False)
-    total_corners: Mapped[int] = mapped_column(Integer, nullable=False)
-    total_yellow_cards: Mapped[int] = mapped_column(Integer, nullable=False)
+    actual_outcome: Mapped[int] = mapped_column(SmallInteger, nullable=False)
+    home_goals: Mapped[int] = mapped_column(SmallInteger, nullable=False)
+    away_goals: Mapped[int] = mapped_column(SmallInteger, nullable=False)
+    total_corners: Mapped[int] = mapped_column(SmallInteger, nullable=False)
+    total_yellow_cards: Mapped[int] = mapped_column(SmallInteger, nullable=False)
     match_id: Mapped[int] = mapped_column(ForeignKey("matches.id"), nullable=False, unique=True)
 
     match: Mapped["Match"] = relationship(back_populates="result")
@@ -191,7 +191,7 @@ class Prediction(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
-    predicted_outcome: Mapped[int] = mapped_column(Integer, nullable=False)
+    predicted_outcome: Mapped[int] = mapped_column(SmallInteger, nullable=False)
     home_win_probability: Mapped[Decimal] = mapped_column(Numeric(5, 4), nullable=False)
     draw_probability: Mapped[Decimal] = mapped_column(Numeric(5, 4), nullable=False)
     away_win_probability: Mapped[Decimal] = mapped_column(Numeric(5, 4), nullable=False)
@@ -220,7 +220,7 @@ class PredictionCharacteristicValue(Base):
 
     prediction_id: Mapped[int] = mapped_column(ForeignKey("predictions.id"), primary_key=True)
     characteristic_id: Mapped[int] = mapped_column(ForeignKey("prediction_characteristics.id"), primary_key=True)
-    predicted_value: Mapped[str] = mapped_column(String(50), nullable=False)
+    predicted_value: Mapped[str] = mapped_column(String(20), nullable=False)
     probability: Mapped[Decimal | None] = mapped_column(Numeric(5, 4))
 
     prediction: Mapped["Prediction"] = relationship(back_populates="characteristic_values")
@@ -242,7 +242,7 @@ class User(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     username: Mapped[str] = mapped_column(String(50), nullable=False, unique=True)
     email: Mapped[str] = mapped_column(String(100), nullable=False, unique=True)
-    password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
+    password_hash: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     role_id: Mapped[int] = mapped_column(ForeignKey("user_roles.id"), nullable=False)
 
