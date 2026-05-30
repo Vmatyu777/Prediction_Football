@@ -425,6 +425,7 @@ Available endpoints:
 - `GET /matches/{match_id}`;
 - `GET /matches/upcoming`;
 - `GET /matches/recent`;
+- `GET /matches/recent/sampled`;
 - `POST /predict`.
 - `POST /predict/{match_id}`;
 - `GET /predictions/{prediction_id}`.
@@ -452,6 +453,8 @@ The pinned backend/auth stack includes FastAPI, Uvicorn, Pydantic, SQLAlchemy, p
 The `/predict` endpoint remains available for sample/manual JSON input. The match-based `/predict/{match_id}` flow loads final models from `models/final_app/`, reads metadata from `configs/final_app_models.json`, generates runtime features from SQLite, applies the priority-based reconciliation layer, and stores prediction outputs.
 
 Repeated `POST /predict/{match_id}` calls reuse an existing prediction when the same `match_id` and the same deployed outcome `model_id` are already stored. If the deployed outcome model changes after future retraining and receives a different `model_id`, the backend can create a new prediction for the same match. This avoids duplicate `prediction_characteristic_values` for repeated requests while preserving old predictions.
+
+Match rows include a `match_sources` reference (`historical`, `demo`, or `api`). Historical CSV-loaded matches use `historical`; development demo upcoming matches use `demo`; `api` is reserved for a future external loader. Match summary and detail responses expose the source so Android can show a user-facing source label.
 
 Authentication uses short-lived MVP JWT bearer tokens:
 
@@ -495,7 +498,7 @@ Implemented screens:
 
 The match list includes league and season filters with an `All` option. The history screen shows unique predictions without visual duplicates: rows are sorted by `query_date` descending and then grouped by `prediction_id`, so the latest user action is shown for each stored prediction. For completed matches, Android compares prediction characteristics with the factual result.
 
-The Android UI maps technical backend values such as `H / D / A`, `Yes / No`, match statuses, and bookmaker/source names to Russian user-facing labels. Team names, league names, and country names are kept as returned by the backend.
+The Android UI maps technical backend values such as `H / D / A`, `Yes / No`, match statuses, and bookmaker/source names to Russian user-facing labels. Match outcome probabilities are shown with full labels (`Home win`, `Draw`, `Away win` equivalents in Russian), not short betting notation. Historical match sources are not shown in the UI; demo and API sources are shown as user-facing labels. Team names, league names, and country names are kept as returned by the backend.
 
 Prediction timestamps are stored by the backend as UTC `created_at` values. Android treats backend `created_at` as UTC and displays it in the local timezone of the emulator or physical tablet. The device timezone affects display only.
 

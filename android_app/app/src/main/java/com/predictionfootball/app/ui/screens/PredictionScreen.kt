@@ -21,7 +21,7 @@ import androidx.compose.ui.unit.dp
 import com.predictionfootball.app.R
 import com.predictionfootball.app.models.PredictionDto
 import com.predictionfootball.app.ui.displayBinaryLabel
-import com.predictionfootball.app.ui.displayOutcome
+import com.predictionfootball.app.ui.displayOutcomeLong
 import com.predictionfootball.app.ui.displayProbabilityLabel
 import com.predictionfootball.app.ui.formatBackendUtcDateTime
 import com.predictionfootball.app.ui.components.ErrorContent
@@ -80,7 +80,7 @@ private fun PredictionContent(prediction: PredictionDto) {
                 fontWeight = FontWeight.Bold,
             )
             Spacer(modifier = Modifier.height(12.dp))
-            KeyValueRow(stringResource(R.string.outcome), displayOutcome(prediction.outcome))
+            KeyValueRow("Прогноз", displayOutcomeLong(prediction.outcome))
             ProbabilityRow(prediction.outcomeProbabilities)
         }
 

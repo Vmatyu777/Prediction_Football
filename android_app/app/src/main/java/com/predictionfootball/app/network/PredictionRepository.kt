@@ -7,7 +7,7 @@ import com.predictionfootball.app.models.PredictionDto
 class PredictionRepository(
     private val api: PredictionApiService = RetrofitClient.create(),
 ) {
-    suspend fun recentMatches(): List<MatchSummaryDto> = api.getRecentMatches()
+    suspend fun recentMatches(): List<MatchSummaryDto> = api.getSampledRecentMatches()
 
     suspend fun upcomingMatches(): List<MatchSummaryDto> = api.getUpcomingMatches()
 

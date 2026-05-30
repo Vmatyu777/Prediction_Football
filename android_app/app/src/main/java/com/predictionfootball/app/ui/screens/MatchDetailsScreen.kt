@@ -25,6 +25,7 @@ import com.predictionfootball.app.models.SeasonDto
 import com.predictionfootball.app.models.TeamDto
 import com.predictionfootball.app.ui.displayBookmaker
 import com.predictionfootball.app.ui.displayMatchStatus
+import com.predictionfootball.app.ui.displayMatchSource
 import com.predictionfootball.app.ui.components.ErrorContent
 import com.predictionfootball.app.ui.components.InfoCard
 import com.predictionfootball.app.ui.components.KeyValueRow
@@ -95,6 +96,10 @@ private fun MatchDetailsContent(
             KeyValueRow(stringResource(R.string.league), "${match.league.name}, ${match.league.country}")
             KeyValueRow(stringResource(R.string.season), match.season.name)
             KeyValueRow(stringResource(R.string.status), displayMatchStatus(match.status))
+            val sourceLabel = displayMatchSource(match.source)
+            if (sourceLabel.isNotBlank()) {
+                KeyValueRow("Источник", sourceLabel)
+            }
             if (match.result != null) {
                 KeyValueRow(stringResource(R.string.final_score), "${match.result.homeGoals}:${match.result.awayGoals}")
                 KeyValueRow(stringResource(R.string.corners), match.result.totalCorners.toString())
@@ -164,6 +169,7 @@ internal fun sampleMatchDetails() = MatchDetailDto(
     homeTeam = TeamDto(1, "Arsenal", "England"),
     awayTeam = TeamDto(2, "Chelsea", "England"),
     status = "Finished",
+    source = "historical",
     result = sampleMatches().first().result,
     odds = listOf(
         OddsDto(

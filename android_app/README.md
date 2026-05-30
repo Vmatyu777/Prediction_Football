@@ -6,7 +6,7 @@ Android tablet MVP client for the existing FastAPI backend in this monorepo.
 
 The Android application is a thin client. It must not train models, generate ML features, access SQLite directly, or implement the reconciliation layer locally. Final prediction logic stays in the backend:
 
-- match browsing: `GET /matches`, `GET /matches/{match_id}`, `GET /matches/upcoming`, `GET /matches/recent`;
+- match browsing: `GET /matches`, `GET /matches/{match_id}`, `GET /matches/upcoming`, `GET /matches/recent`, `GET /matches/recent/sampled`;
 - prediction: `POST /predict/{match_id}`;
 - stored prediction details: `GET /predictions/{prediction_id}`;
 - auth: `POST /auth/register`, `POST /auth/login`, `GET /auth/me`;
@@ -114,7 +114,7 @@ interface PredictionApiService {
     @GET("matches/upcoming")
     suspend fun getUpcomingMatches(...): List<MatchSummaryDto>
 
-    @GET("matches/recent")
+    @GET("matches/recent/sampled")
     suspend fun getRecentMatches(...): List<MatchSummaryDto>
 
     @GET("matches/{match_id}")
@@ -125,7 +125,7 @@ interface PredictionApiService {
 }
 ```
 
-The backend can return technical values such as `H`, `D`, `A`, `Yes`, `No`, `Finished`, or `Market Average`. Android keeps these values unchanged in DTOs and maps them only in the UI layer to Russian user-facing labels.
+The backend can return technical values such as `H`, `D`, `A`, `Yes`, `No`, `Finished`, `Market Average`, or match sources such as `historical`, `demo`, and `api`. Android keeps these values unchanged in DTOs and maps them only in the UI layer to Russian user-facing labels. Prediction outcomes use full labels in the result screen; `historical` source labels are hidden, while `demo` and `api` are shown as demo/API match labels.
 
 Backend `prediction.created_at` values are stored as UTC. Android treats `created_at` as UTC and displays it in the local timezone of the emulator or physical tablet. The device timezone affects display only.
 

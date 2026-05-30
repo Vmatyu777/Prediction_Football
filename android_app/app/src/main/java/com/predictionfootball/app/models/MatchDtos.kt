@@ -12,6 +12,7 @@ data class MatchSummaryDto(
     @SerialName("home_team") val homeTeam: String,
     @SerialName("away_team") val awayTeam: String,
     val status: String,
+    val source: String,
     val result: MatchResultDto? = null,
 )
 
@@ -24,6 +25,7 @@ data class MatchDetailDto(
     @SerialName("home_team") val homeTeam: TeamDto,
     @SerialName("away_team") val awayTeam: TeamDto,
     val status: String,
+    val source: String,
     val result: MatchResultDto? = null,
     val odds: List<OddsDto> = emptyList(),
 )

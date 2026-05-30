@@ -136,7 +136,7 @@ Current design decision: exact score must not drive the final system because it 
 ## Backend API Skeleton
 
 - Initial FastAPI backend code lives under `src/api/`.
-- Current endpoints: `GET /health`, `GET /db/health`, `GET /models`, `POST /auth/register`, `POST /auth/login`, `GET /auth/me`, `GET /users/me/history`, `GET /matches`, `GET /matches/{match_id}`, `GET /matches/upcoming`, `GET /matches/recent`, `POST /predict`, `POST /predict/{match_id}`, `GET /predictions/{prediction_id}`.
+- Current endpoints: `GET /health`, `GET /db/health`, `GET /models`, `POST /auth/register`, `POST /auth/login`, `GET /auth/me`, `GET /users/me/history`, `GET /matches`, `GET /matches/{match_id}`, `GET /matches/upcoming`, `GET /matches/recent`, `GET /matches/recent/sampled`, `POST /predict`, `POST /predict/{match_id}`, `GET /predictions/{prediction_id}`.
 - Run locally with `uvicorn src.api.main:app --reload`.
 - Run for Android emulator/tablet testing with `uvicorn src.api.main:app --host 0.0.0.0 --port 8000 --reload`.
 - The backend must load tracked metadata from `configs/final_app_models.json` and local model binaries from `models/final_app/`.
@@ -162,6 +162,7 @@ Current design decision: exact score must not drive the final system because it 
 - The loader source is `data/interim/matches_top5_2018_2025_clean.csv`, not the feature matrix CSV files.
 - The ELO loader primary source is `data/raw/EloRatings.csv`; root CSV fallback is local compatibility only.
 - The loader fills countries, leagues, seasons, teams, matches, match results, bookmakers, and odds.
+- Match rows reference `match_sources`: CSV-loaded rows use `historical`, development demo upcoming rows use `demo`, and `api` is reserved for a future external loader.
 - SQLite stores lightweight metadata for final deployed ML models in `models` and `model_metrics`.
 - `POST /predict/{match_id}` stores rows in `predictions` and `prediction_characteristic_values`.
 - Authenticated `POST /predict/{match_id}` also stores user action rows in `user_query_history`.
@@ -169,6 +170,7 @@ Current design decision: exact score must not drive the final system because it 
 - Runtime feature generation must preserve feature names and ordering from `src/features/feature_registry.py` for `v1_only`, `v1_score_related`, and `v1_yellow_related`.
 - Current prediction reuse is model-aware: repeated `POST /predict/{match_id}` calls return the existing row for the same `match_id` and same deployed outcome `model_id`; a different future outcome `model_id` may create a new prediction.
 - `src/api/database/clear_runtime_data.py` is a development-only cleanup script. It clears only `users`, `user_query_history`, `predictions`, and `prediction_characteristic_values`; it must not delete football domain data, model metadata, metrics, odds, ELO ratings, or schema objects.
+- `src/api/database/seed_demo_upcoming_matches.py` is a development seed script. It creates scheduled demo matches with `source=demo`, `Market Average` odds, and no `match_results`.
 - Users and query history are not loaded by the football data loader.
 - `user_query_history` is an action log and may contain multiple rows for the same `prediction_id`; Android should display only the latest row per prediction.
 
@@ -185,6 +187,8 @@ Current design decision: exact score must not drive the final system because it 
 - Prediction history is sorted by `query_date` descending and then deduplicated by `prediction_id` for display.
 - Match list supports client-side filters by league and season with an `All` option.
 - Android UI maps technical backend values to Russian user-facing labels through display mapping helpers.
+- Android displays backend match sources through user-facing labels: `historical` is hidden, `demo` is shown as a demo match, and `api` is shown as an API match.
+- Android prediction results display outcome labels with full user-facing names, not short betting notation.
 - Team names, league names, and country names should remain as returned by the backend.
 - Backend `prediction.created_at` is stored as UTC; Android displays it in the local timezone of the emulator/tablet.
 - Android Emulator backend URL: `http://10.0.2.2:8000/`.

@@ -18,15 +18,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.predictionfootball.app.models.MatchResultDto
 import com.predictionfootball.app.models.PredictionHistoryDto
-import com.predictionfootball.app.ui.displayBinaryLabel
-import com.predictionfootball.app.ui.displayOutcomeLong
-import com.predictionfootball.app.ui.formatBackendUtcDateTime
 import com.predictionfootball.app.ui.components.ErrorContent
 import com.predictionfootball.app.ui.components.InfoCard
 import com.predictionfootball.app.ui.components.KeyValueRow
 import com.predictionfootball.app.ui.components.LoadingContent
 import com.predictionfootball.app.ui.components.ScreenScaffold
+import com.predictionfootball.app.ui.displayBinaryLabel
+import com.predictionfootball.app.ui.displayOutcomeLong
+import com.predictionfootball.app.ui.formatBackendUtcDateTime
 import com.predictionfootball.app.ui.theme.PredictionFootballTheme
 import com.predictionfootball.app.viewmodel.AuthViewModel
 import com.predictionfootball.app.viewmodel.ProfileState
@@ -150,19 +151,14 @@ private fun HistoryCard(item: PredictionHistoryDto) {
         }
         if (!item.exactScore.isNullOrBlank()) {
             Spacer(modifier = Modifier.height(8.dp))
-            KeyValueRow("Точный счет", item.exactScore)
+            ForecastComparisonRow(
+                label = "Точный счет",
+                prediction = item.exactScore,
+                fact = item.result?.let { actualScore(it.homeGoals, it.awayGoals) },
+            )
         }
         Spacer(modifier = Modifier.height(8.dp))
-        KeyValueRow(
-            "Статус",
-            item.result?.let {
-                if (actualOutcomeCode(it.actualOutcome) == item.outcome) {
-                    "Прогноз сбылся"
-                } else {
-                    "Прогноз не сбылся"
-                }
-            } ?: "Матч не завершен",
-        )
+        KeyValueRow("Статус", predictionSummary(item))
     }
 }
 
@@ -173,10 +169,10 @@ private fun ForecastComparisonRow(
     fact: String?,
 ) {
     val value = if (fact == null) {
-        "прогноз: $prediction; матч не завершен"
+        "Прогноз: $prediction; Факт: Матч не завершен"
     } else {
-        val status = if (prediction == fact) "совпало" else "не совпало"
-        "прогноз: $prediction; факт: $fact; $status"
+        val status = if (prediction == fact) "Угадано" else "Не угадано"
+        "Прогноз: $prediction; Факт: $fact; $status"
     }
     Column {
         Text(
@@ -200,6 +196,26 @@ private fun actualOutcomeCode(value: Int): String = when (value) {
 }
 
 private fun binaryFact(value: Boolean): String = if (value) "Yes" else "No"
+
+private fun actualScore(homeGoals: Int, awayGoals: Int): String = "$homeGoals:$awayGoals"
+
+private fun predictionSummary(item: PredictionHistoryDto): String {
+    val result = item.result ?: return "Матч не завершен"
+    val checks = buildList {
+        add(actualOutcomeCode(result.actualOutcome) == item.outcome)
+        item.btts?.let { add(it == binaryFact(result.homeGoals > 0 && result.awayGoals > 0)) }
+        item.over25?.let { add(it == binaryFact((result.homeGoals + result.awayGoals) > 2.5)) }
+        item.cornersOver95?.let { add(it == binaryFact(result.totalCorners > 9.5)) }
+        item.yellowCardsOver35?.let { add(it == binaryFact(result.totalYellowCards > 3.5)) }
+        item.exactScore?.takeIf { it.isNotBlank() }?.let {
+            add(it == actualScore(result.homeGoals, result.awayGoals))
+        }
+    }
+    if (checks.isEmpty()) {
+        return "Факт недоступен"
+    }
+    return "Угадано: ${checks.count { it }} из ${checks.size} показателей"
+}
 
 @Preview(showBackground = true, widthDp = 900)
 @Composable
@@ -225,7 +241,7 @@ private fun HistoryScreenPreview() {
                         cornersOver95 = "Yes",
                         yellowCardsOver35 = "No",
                         exactScore = "2:1",
-                        result = com.predictionfootball.app.models.MatchResultDto(
+                        result = MatchResultDto(
                             actualOutcome = 2,
                             homeGoals = 2,
                             awayGoals = 1,

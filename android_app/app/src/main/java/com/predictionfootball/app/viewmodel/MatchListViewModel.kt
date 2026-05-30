@@ -35,6 +35,10 @@ class MatchListViewModel(
     }
 
     fun loadMatches(mode: MatchListMode = _mode.value) {
+        if (_mode.value != mode) {
+            _selectedLeague.value = null
+            _selectedSeason.value = null
+        }
         _mode.value = mode
         _state.value = UiState.Loading
         viewModelScope.launch {

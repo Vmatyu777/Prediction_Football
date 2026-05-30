@@ -71,6 +71,42 @@ def list_recent_matches(db: Session, *, limit: int = 50, offset: int = 0) -> lis
     return [build_match_summary(match) for match in matches]
 
 
+def list_sampled_recent_matches(db: Session, *, per_league_season: int = 5) -> list[MatchSummaryResponse]:
+    seasons = (
+        db.query(Season)
+        .join(Season.league)
+        .order_by(Season.name.desc(), League.name.asc())
+        .all()
+    )
+    sampled_matches = []
+
+    for season in seasons:
+        matches = (
+            db.query(Match)
+            .join(MatchResult)
+            .filter(Match.season_id == season.id)
+            .order_by(Match.match_date.desc(), Match.id.desc())
+            .limit(per_league_season)
+            .all()
+        )
+        sampled_matches.extend(matches)
+
+    sampled_matches.sort(
+        key=lambda match: (
+            match.match_date,
+            _sort_text_desc(match.season.league.name),
+            _sort_text_desc(match.home_team.name),
+            match.id,
+        ),
+        reverse=True,
+    )
+    return [build_match_summary(match) for match in sampled_matches]
+
+
+def _sort_text_desc(value: str) -> tuple[int, ...]:
+    return tuple(-ord(character) for character in value)
+
+
 def build_match_summary(match: Match) -> MatchSummaryResponse:
     return MatchSummaryResponse(
         id=match.id,
@@ -80,6 +116,7 @@ def build_match_summary(match: Match) -> MatchSummaryResponse:
         home_team=match.home_team.name,
         away_team=match.away_team.name,
         status=match.status.name,
+        source=match.source.name,
         result=build_result_response(match.result),
     )
 
@@ -105,6 +142,7 @@ def build_match_detail(match: Match) -> MatchDetailResponse:
             country=match.away_team.country.name,
         ),
         status=match.status.name,
+        source=match.source.name,
         result=build_result_response(match.result),
         odds=[build_odds_response(odds) for odds in match.odds],
     )

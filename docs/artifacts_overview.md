@@ -42,12 +42,13 @@ This document gives a short engineering overview of the current project artifact
 - `src/api/database/session.py` configures the SQLAlchemy SQLite engine, session factory, and declarative base.
 - `src/api/database/models.py` stores SQLAlchemy ORM models for the physical database schema.
 - `src/api/database/init_db.py` creates the local SQLite database file and all tables.
-- `src/api/database/seed_db.py` inserts minimal reference data for statuses, user roles, model types, metrics, prediction characteristics, and bookmakers.
+- `src/api/database/seed_db.py` inserts minimal reference data for statuses, match sources, user roles, model types, metrics, prediction characteristics, and bookmakers.
 - `src/api/database/seed_final_models.py` inserts final deployed model metadata and main final test metrics into SQLite.
 - `src/api/database/load_football_data.py` loads cleaned domain football data from `data/interim/matches_top5_2018_2025_clean.csv` into SQLite.
 - `src/api/database/load_elo_ratings.py` loads ELO rating history from `data/raw/EloRatings.csv` for teams already present in SQLite, with root CSV fallback for local compatibility.
+- `src/api/database/seed_demo_upcoming_matches.py` creates development demo upcoming matches as regular `matches` rows with `source=demo`, `Market Average` odds, and no match result.
 - `src/api/services/feature_service.py` builds runtime model feature vectors from SQLite data using training-compatible feature names, ordering, ELO logic, odds transforms, and rolling-history calculations.
-- `src/api/services/match_service.py` contains SQLAlchemy query helpers for match listing, match details, upcoming matches, and recent matches.
+- `src/api/services/match_service.py` contains SQLAlchemy query helpers for match listing, match details, upcoming matches, recent matches, and sampled recent matches.
 
 ## Android App
 
@@ -224,6 +225,7 @@ Endpoints:
 - `GET /matches/{match_id}` returns match details with teams, result, and odds.
 - `GET /matches/upcoming` returns matches without result.
 - `GET /matches/recent` returns recent finished matches.
+- `GET /matches/recent/sampled` returns a balanced recent sample across league-season pairs for the Android filters.
 - `POST /predict/{match_id}` builds runtime features from SQLite data, runs final models, reconciles outputs, stores prediction rows, and returns the final prediction.
 - `GET /predictions/{prediction_id}` returns a persisted prediction with characteristic values.
 

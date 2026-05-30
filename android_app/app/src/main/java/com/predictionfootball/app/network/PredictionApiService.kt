@@ -33,6 +33,11 @@ interface PredictionApiService {
         @Query("offset") offset: Int = 0,
     ): List<MatchSummaryDto>
 
+    @GET("matches/recent/sampled")
+    suspend fun getSampledRecentMatches(
+        @Query("per_league_season") perLeagueSeason: Int = 5,
+    ): List<MatchSummaryDto>
+
     @GET("matches/upcoming")
     suspend fun getUpcomingMatches(
         @Query("limit") limit: Int = 50,

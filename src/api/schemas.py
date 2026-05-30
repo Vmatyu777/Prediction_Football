@@ -96,6 +96,7 @@ class MatchSummaryResponse(BaseModel):
     home_team: str
     away_team: str
     status: str
+    source: str
     result: MatchResultResponse | None
 
 
@@ -107,6 +108,7 @@ class MatchDetailResponse(BaseModel):
     home_team: TeamResponse
     away_team: TeamResponse
     status: str
+    source: str
     result: MatchResultResponse | None
     odds: list[OddsResponse]
 

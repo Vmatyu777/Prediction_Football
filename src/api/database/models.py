@@ -82,6 +82,15 @@ class MatchStatus(Base):
     matches: Mapped[list["Match"]] = relationship(back_populates="status")
 
 
+class MatchSource(Base):
+    __tablename__ = "match_sources"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(String(20), nullable=False, unique=True)
+
+    matches: Mapped[list["Match"]] = relationship(back_populates="source")
+
+
 class Match(Base):
     __tablename__ = "matches"
 
@@ -91,11 +100,13 @@ class Match(Base):
     home_team_id: Mapped[int] = mapped_column(ForeignKey("teams.id"), nullable=False)
     away_team_id: Mapped[int] = mapped_column(ForeignKey("teams.id"), nullable=False)
     status_id: Mapped[int] = mapped_column(ForeignKey("match_statuses.id"), nullable=False)
+    source_id: Mapped[int] = mapped_column(ForeignKey("match_sources.id"), nullable=False)
 
     season: Mapped["Season"] = relationship(back_populates="matches")
     home_team: Mapped["Team"] = relationship(back_populates="home_matches", foreign_keys=[home_team_id])
     away_team: Mapped["Team"] = relationship(back_populates="away_matches", foreign_keys=[away_team_id])
     status: Mapped["MatchStatus"] = relationship(back_populates="matches")
+    source: Mapped["MatchSource"] = relationship(back_populates="matches")
     result: Mapped["MatchResult | None"] = relationship(back_populates="match")
     odds: Mapped[list["Odds"]] = relationship(back_populates="match")
     predictions: Mapped[list["Prediction"]] = relationship(back_populates="match")

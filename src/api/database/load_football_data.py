@@ -21,6 +21,7 @@ from src.api.database.models import (
     League,
     Match,
     MatchResult,
+    MatchSource,
     MatchStatus,
     Odds,
     Season,
@@ -220,6 +221,7 @@ def get_or_create_match(
     home_team_id: int,
     away_team_id: int,
     status_id: int,
+    source_id: int,
 ) -> Match:
     match = (
         db.query(Match)
@@ -241,6 +243,7 @@ def get_or_create_match(
         home_team_id=home_team_id,
         away_team_id=away_team_id,
         status_id=status_id,
+        source_id=source_id,
     )
     db.add(match)
     db.flush()
@@ -312,6 +315,7 @@ def load_football_data(csv_path: Path = CLEANED_MATCHES_PATH) -> dict[str, int]:
 
     with SessionLocal() as db:
         finished_status = get_or_create_by_name(db, MatchStatus, "finished")
+        historical_source = get_or_create_by_name(db, MatchSource, "historical")
         bookmaker = get_or_create_by_name(db, Bookmaker, MARKET_AVERAGE_BOOKMAKER)
 
         for _, row in data.iterrows():
@@ -339,6 +343,7 @@ def load_football_data(csv_path: Path = CLEANED_MATCHES_PATH) -> dict[str, int]:
                 home_team_id=home_team.id,
                 away_team_id=away_team.id,
                 status_id=finished_status.id,
+                source_id=historical_source.id,
             )
             get_or_create_result(db, summary, row, match.id)
             get_or_create_odds(db, summary, row, match.id, bookmaker.id, match_date)

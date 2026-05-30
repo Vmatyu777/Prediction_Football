@@ -35,6 +35,7 @@ from src.api.services.match_service import (
     get_match_detail,
     list_matches,
     list_recent_matches,
+    list_sampled_recent_matches,
     list_upcoming_matches,
 )
 from src.api.services.model_registry import get_model_summaries
@@ -136,6 +137,14 @@ def recent_matches(
 ) -> list[MatchSummaryResponse]:
     with SessionLocal() as db:
         return list_recent_matches(db, limit=limit, offset=offset)
+
+
+@app.get("/matches/recent/sampled", response_model=list[MatchSummaryResponse])
+def sampled_recent_matches(
+    per_league_season: int = Query(default=5, ge=1, le=10),
+) -> list[MatchSummaryResponse]:
+    with SessionLocal() as db:
+        return list_sampled_recent_matches(db, per_league_season=per_league_season)
 
 
 @app.get("/matches/{match_id}", response_model=MatchDetailResponse)

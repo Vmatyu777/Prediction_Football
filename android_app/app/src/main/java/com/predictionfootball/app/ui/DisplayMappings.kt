@@ -10,10 +10,10 @@ fun displayMatchStatus(value: String): String = when (value.trim().lowercase(Loc
     else -> value
 }
 
-fun displayOutcome(value: String): String = when (value.trim().uppercase(Locale.ROOT)) {
-    "H" -> "П1"
-    "D" -> "Н"
-    "A" -> "П2"
+fun displayMatchSource(value: String): String = when (value.trim().lowercase(Locale.ROOT)) {
+    "historical" -> ""
+    "demo" -> "Демо-матч"
+    "api" -> "Матч API"
     else -> value
 }
 
@@ -31,7 +31,7 @@ fun displayBinaryLabel(value: String): String = when (value.trim().lowercase(Loc
 }
 
 fun displayProbabilityLabel(value: String): String = when (value.trim().uppercase(Locale.ROOT)) {
-    "H", "D", "A" -> displayOutcome(value)
+    "H", "D", "A" -> displayOutcomeLong(value)
     "YES", "NO" -> displayBinaryLabel(value)
     "BTTS" -> "ОЗ"
     else -> value

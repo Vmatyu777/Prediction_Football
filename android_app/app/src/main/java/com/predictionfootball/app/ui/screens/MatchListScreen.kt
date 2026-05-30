@@ -9,7 +9,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -17,6 +19,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -32,6 +35,7 @@ import com.predictionfootball.app.R
 import com.predictionfootball.app.models.MatchResultDto
 import com.predictionfootball.app.models.MatchSummaryDto
 import com.predictionfootball.app.ui.displayMatchStatus
+import com.predictionfootball.app.ui.displayMatchSource
 import com.predictionfootball.app.ui.components.ErrorContent
 import com.predictionfootball.app.ui.components.InfoCard
 import com.predictionfootball.app.ui.components.KeyValueRow
@@ -80,6 +84,12 @@ fun MatchListScreen(
     onMatchClick: (Long) -> Unit,
     onProfileClick: () -> Unit,
 ) {
+    val listState = rememberLazyListState()
+
+    LaunchedEffect(selectedMode, selectedLeague, selectedSeason) {
+        listState.scrollToItem(0)
+    }
+
     ScreenScaffold(
         title = stringResource(R.string.football_matches),
         subtitle = stringResource(R.string.match_list_subtitle),
@@ -116,6 +126,7 @@ fun MatchListScreen(
             is UiState.Success -> MatchList(
                 matches = state.data.filterBy(selectedLeague, selectedSeason),
                 selectedMode = selectedMode,
+                listState = listState,
                 onMatchClick = onMatchClick,
             )
         }
@@ -196,6 +207,7 @@ private fun List<MatchSummaryDto>.filterBy(league: String?, season: String?): Li
 private fun MatchList(
     matches: List<MatchSummaryDto>,
     selectedMode: MatchListMode,
+    listState: LazyListState,
     onMatchClick: (Long) -> Unit,
 ) {
     if (matches.isEmpty()) {
@@ -213,6 +225,7 @@ private fun MatchList(
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
+        state = listState,
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         items(matches, key = { it.id }) { match ->
@@ -246,6 +259,15 @@ private fun MatchCard(match: MatchSummaryDto, onClick: () -> Unit) {
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                val sourceLabel = displayMatchSource(match.source)
+                if (sourceLabel.isNotBlank()) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = sourceLabel,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.secondary,
+                    )
+                }
             }
             Text(
                 text = displayMatchStatus(match.status),
@@ -301,6 +323,7 @@ internal fun sampleMatches() = listOf(
         homeTeam = "Arsenal",
         awayTeam = "Chelsea",
         status = "Finished",
+        source = "historical",
         result = MatchResultDto(2, 2, 1, 9, 4),
     ),
     MatchSummaryDto(
@@ -311,6 +334,7 @@ internal fun sampleMatches() = listOf(
         homeTeam = "Barcelona",
         awayTeam = "Real Madrid",
         status = "Scheduled",
+        source = "demo",
         result = null,
     ),
 )
