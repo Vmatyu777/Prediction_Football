@@ -12,6 +12,7 @@ import kotlinx.coroutines.launch
 enum class MatchListMode {
     Recent,
     Upcoming,
+    Showcase,
 }
 
 class MatchListViewModel(
@@ -46,6 +47,7 @@ class MatchListViewModel(
                 when (mode) {
                     MatchListMode.Recent -> repository.recentMatches()
                     MatchListMode.Upcoming -> repository.upcomingMatches()
+                    MatchListMode.Showcase -> repository.showcaseMatches()
                 }
             }.onSuccess { matches ->
                 _state.value = UiState.Success(matches)

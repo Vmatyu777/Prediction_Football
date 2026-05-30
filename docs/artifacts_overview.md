@@ -47,8 +47,9 @@ This document gives a short engineering overview of the current project artifact
 - `src/api/database/load_football_data.py` loads cleaned domain football data from `data/interim/matches_top5_2018_2025_clean.csv` into SQLite.
 - `src/api/database/load_elo_ratings.py` loads ELO rating history from `data/raw/EloRatings.csv` for teams already present in SQLite, with root CSV fallback for local compatibility.
 - `src/api/database/seed_demo_upcoming_matches.py` creates development demo upcoming matches as regular `matches` rows with `source=demo`, `Market Average` odds, and no match result.
+- `src/analysis/prediction_quality_analysis.py` computes historical prediction-quality reports without storing prediction rows in SQLite.
 - `src/api/services/feature_service.py` builds runtime model feature vectors from SQLite data using training-compatible feature names, ordering, ELO logic, odds transforms, and rolling-history calculations.
-- `src/api/services/match_service.py` contains SQLAlchemy query helpers for match listing, match details, upcoming matches, recent matches, and sampled recent matches.
+- `src/api/services/match_service.py` contains SQLAlchemy query helpers for match listing, match details, upcoming matches, recent matches, sampled recent matches, and showcase examples.
 
 ## Android App
 
@@ -226,6 +227,7 @@ Endpoints:
 - `GET /matches/upcoming` returns matches without result.
 - `GET /matches/recent` returns recent finished matches.
 - `GET /matches/recent/sampled` returns a balanced recent sample across league-season pairs for the Android filters.
+- `GET /matches/showcase` returns historical demonstration examples selected from prediction-quality reports. These examples show strong historical matches for the MVP demo and do not replace aggregate model metrics.
 - `POST /predict/{match_id}` builds runtime features from SQLite data, runs final models, reconciles outputs, stores prediction rows, and returns the final prediction.
 - `GET /predictions/{prediction_id}` returns a persisted prediction with characteristic values.
 
@@ -267,7 +269,7 @@ Load cleaned football domain data:
 python src/api/database/load_football_data.py
 ```
 
-The football loader uses `data/interim/matches_top5_2018_2025_clean.csv` as the source for domain data. It fills countries, leagues, seasons, teams, matches, match results, bookmakers, and odds. SQLite also stores ELO rating history, final deployed model metadata, and main final test metrics. `POST /predict/{match_id}` generates runtime features from SQLite instead of training feature CSV files, persists predictions and prediction characteristic values, and reuses an existing prediction for the same `match_id` and deployed outcome `model_id`. A future retrained/deployed outcome model with a different `model_id` can create a new prediction for the same match. Authenticated requests add rows to `user_query_history`; this table stores user actions and can contain several rows for the same `prediction_id`.
+The football loader uses `data/interim/matches_top5_2018_2025_clean.csv` as the source for domain data. It fills countries, leagues, seasons, teams, matches, match results, bookmakers, and odds. Odds rows store 1X2 odds plus Over/Under 2.5 goal-total odds so runtime odds features match the training feature sets. SQLite also stores ELO rating history, final deployed model metadata, and main final test metrics. `POST /predict/{match_id}` generates runtime features from SQLite instead of training feature CSV files, persists predictions and prediction characteristic values, and reuses an existing prediction for the same `match_id` and deployed outcome `model_id`. A future retrained/deployed outcome model with a different `model_id` can create a new prediction for the same match. Authenticated requests add rows to `user_query_history`; this table stores user actions and can contain several rows for the same `prediction_id`.
 
 Development-only cleanup:
 

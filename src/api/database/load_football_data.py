@@ -57,6 +57,8 @@ REQUIRED_COLUMNS = [
     "OddHome",
     "OddDraw",
     "OddAway",
+    "Over25",
+    "Under25",
 ]
 
 
@@ -288,6 +290,8 @@ def get_or_create_odds(
             home_win_odds=decimal_from_row(row, "OddHome"),
             draw_odds=decimal_from_row(row, "OddDraw"),
             away_win_odds=decimal_from_row(row, "OddAway"),
+            over25_odds=decimal_from_row(row, "Over25"),
+            under25_odds=decimal_from_row(row, "Under25"),
             collected_at=collected_at,
             match_id=match_id,
             bookmaker_id=bookmaker_id,

@@ -143,6 +143,8 @@ class Odds(Base):
     home_win_odds: Mapped[Decimal] = mapped_column(Numeric(4, 2), nullable=False)
     draw_odds: Mapped[Decimal] = mapped_column(Numeric(4, 2), nullable=False)
     away_win_odds: Mapped[Decimal] = mapped_column(Numeric(4, 2), nullable=False)
+    over25_odds: Mapped[Decimal] = mapped_column(Numeric(4, 2), nullable=False)
+    under25_odds: Mapped[Decimal] = mapped_column(Numeric(4, 2), nullable=False)
     collected_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     match_id: Mapped[int] = mapped_column(ForeignKey("matches.id"), nullable=False)
     bookmaker_id: Mapped[int] = mapped_column(ForeignKey("bookmakers.id"), nullable=False)

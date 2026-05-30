@@ -1,0 +1,7 @@
+metric,value
+total_historical_matches,12528.0
+average_total_hits_6,2.968390804597701
+average_total_hits_without_exact_5,2.848579182630907
+exact_score_hits,1501.0
+matches_with_4plus_without_exact_5,3882.0
+matches_with_5of5_without_exact,984.0

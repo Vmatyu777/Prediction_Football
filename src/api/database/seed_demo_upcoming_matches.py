@@ -28,7 +28,7 @@ DEMO_MATCHES = [
         "away_team": "Arsenal",
         "days_ahead": 7,
         "hour": 18,
-        "odds": ("2.35", "3.45", "2.80"),
+        "odds": ("2.35", "3.45", "2.80", "1.70", "2.12"),
     },
     {
         "league": "La Liga",
@@ -36,7 +36,7 @@ DEMO_MATCHES = [
         "away_team": "Barcelona",
         "days_ahead": 8,
         "hour": 21,
-        "odds": ("2.20", "3.60", "3.05"),
+        "odds": ("2.20", "3.60", "3.05", "1.55", "2.42"),
     },
     {
         "league": "Serie A",
@@ -44,7 +44,7 @@ DEMO_MATCHES = [
         "away_team": "Milan",
         "days_ahead": 9,
         "hour": 20,
-        "odds": ("2.05", "3.25", "3.70"),
+        "odds": ("2.05", "3.25", "3.70", "1.86", "1.96"),
     },
     {
         "league": "Bundesliga",
@@ -52,7 +52,7 @@ DEMO_MATCHES = [
         "away_team": "Dortmund",
         "days_ahead": 10,
         "hour": 19,
-        "odds": ("1.70", "4.10", "4.35"),
+        "odds": ("1.70", "4.10", "4.35", "1.48", "2.65"),
     },
     {
         "league": "Ligue 1",
@@ -60,7 +60,7 @@ DEMO_MATCHES = [
         "away_team": "Marseille",
         "days_ahead": 11,
         "hour": 21,
-        "odds": ("1.65", "4.00", "4.80"),
+        "odds": ("1.65", "4.00", "4.80", "1.62", "2.30"),
     },
 ]
 
@@ -174,7 +174,7 @@ def ensure_demo_odds(
     db: Session,
     match: Match,
     bookmaker: Bookmaker,
-    odds_values: tuple[str, str, str],
+    odds_values: tuple[str, str, str, str, str],
 ) -> bool:
     existing = (
         db.query(Odds)
@@ -187,12 +187,14 @@ def ensure_demo_odds(
     if existing is not None:
         return False
 
-    home_odds, draw_odds, away_odds = odds_values
+    home_odds, draw_odds, away_odds, over25_odds, under25_odds = odds_values
     db.add(
         Odds(
             home_win_odds=decimal_odds(home_odds),
             draw_odds=decimal_odds(draw_odds),
             away_win_odds=decimal_odds(away_odds),
+            over25_odds=decimal_odds(over25_odds),
+            under25_odds=decimal_odds(under25_odds),
             collected_at=datetime.utcnow(),
             match_id=match.id,
             bookmaker_id=bookmaker.id,

@@ -44,6 +44,11 @@ interface PredictionApiService {
         @Query("offset") offset: Int = 0,
     ): List<MatchSummaryDto>
 
+    @GET("matches/showcase")
+    suspend fun getShowcaseMatches(
+        @Query("per_league_season") perLeagueSeason: Int = 5,
+    ): List<MatchSummaryDto>
+
     @GET("matches/{match_id}")
     suspend fun getMatchDetails(
         @Path("match_id") matchId: Long,

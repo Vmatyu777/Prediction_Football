@@ -11,6 +11,8 @@ class PredictionRepository(
 
     suspend fun upcomingMatches(): List<MatchSummaryDto> = api.getUpcomingMatches()
 
+    suspend fun showcaseMatches(): List<MatchSummaryDto> = api.getShowcaseMatches()
+
     suspend fun matchDetails(matchId: Long): MatchDetailDto = api.getMatchDetails(matchId)
 
     suspend fun generatePrediction(matchId: Long): PredictionDto = api.generatePrediction(matchId)

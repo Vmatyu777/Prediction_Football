@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import csv
 from datetime import date, datetime
+from pathlib import Path
 
 from sqlalchemy.orm import Session
 
@@ -13,6 +15,12 @@ from src.api.schemas import (
     OddsResponse,
     SeasonResponse,
     TeamResponse,
+)
+
+
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
+PREDICTION_QUALITY_MATCH_SCORES_PATH = (
+    PROJECT_ROOT / "reports" / "tables" / "prediction_quality" / "prediction_quality_match_scores.csv"
 )
 
 
@@ -101,6 +109,62 @@ def list_sampled_recent_matches(db: Session, *, per_league_season: int = 5) -> l
         reverse=True,
     )
     return [build_match_summary(match) for match in sampled_matches]
+
+
+def list_showcase_matches(db: Session, *, per_league_season: int = 5) -> list[MatchSummaryResponse]:
+    showcase_ids = select_showcase_match_ids(per_league_season=per_league_season)
+    if not showcase_ids:
+        return []
+
+    matches = db.query(Match).filter(Match.id.in_(showcase_ids)).all()
+    match_by_id = {match.id: match for match in matches}
+    ordered_matches = [match_by_id[match_id] for match_id in showcase_ids if match_id in match_by_id]
+    return [build_match_summary(match) for match in ordered_matches]
+
+
+def select_showcase_match_ids(*, per_league_season: int = 5) -> list[int]:
+    if not PREDICTION_QUALITY_MATCH_SCORES_PATH.exists():
+        raise FileNotFoundError(
+            "Prediction quality report not found. Run "
+            "`python src/analysis/prediction_quality_analysis.py` first."
+        )
+
+    grouped_rows: dict[tuple[str, str], list[dict[str, str]]] = {}
+    with PREDICTION_QUALITY_MATCH_SCORES_PATH.open(encoding="utf-8", newline="") as file:
+        reader = csv.DictReader(file)
+        for row in reader:
+            key = (row["league"], row["season"])
+            grouped_rows.setdefault(key, []).append(row)
+
+    selected_rows = []
+    for group_rows in grouped_rows.values():
+        selected_rows.extend(
+            sorted(
+                group_rows,
+                key=lambda row: (
+                    int(row["total_hits_without_exact_5"]),
+                    parse_report_datetime(row["match_date"]),
+                    int(row["match_id"]),
+                ),
+                reverse=True,
+            )[:per_league_season]
+        )
+
+    selected_rows.sort(
+        key=lambda row: (
+            row["season"],
+            row["league"],
+            int(row["total_hits_without_exact_5"]),
+            parse_report_datetime(row["match_date"]),
+            int(row["match_id"]),
+        ),
+        reverse=True,
+    )
+    return [int(row["match_id"]) for row in selected_rows]
+
+
+def parse_report_datetime(value: str) -> datetime:
+    return datetime.fromisoformat(value)
 
 
 def _sort_text_desc(value: str) -> tuple[int, ...]:

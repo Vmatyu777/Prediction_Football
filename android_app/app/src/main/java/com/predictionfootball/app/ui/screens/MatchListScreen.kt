@@ -293,6 +293,7 @@ internal fun formatDate(value: String): String = value
 private fun MatchListMode.titleText(): String = when (this) {
     MatchListMode.Recent -> stringResource(R.string.recent_matches)
     MatchListMode.Upcoming -> stringResource(R.string.upcoming_matches)
+    MatchListMode.Showcase -> stringResource(R.string.showcase_matches)
 }
 
 @Preview(showBackground = true, widthDp = 900)

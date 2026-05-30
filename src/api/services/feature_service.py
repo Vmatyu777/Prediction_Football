@@ -27,8 +27,6 @@ RUNTIME_FEATURE_SETS = {
     "v1_score_related": EXACT_SCORE_FEATURE_SETS["v1_score_related"],
     "v1_yellow_related": YELLOW_CARDS_FEATURE_SETS["v1_yellow_related"],
 }
-MISSING_ODDS_VALUE = 0.0
-
 
 @dataclass
 class RuntimeFeatureBundle:
@@ -69,9 +67,13 @@ def build_runtime_feature_row(db: Session, match: Match) -> dict[str, float | in
     odd_home = float(odds.home_win_odds)
     odd_draw = float(odds.draw_odds)
     odd_away = float(odds.away_win_odds)
+    over25_odds = float(odds.over25_odds)
+    under25_odds = float(odds.under25_odds)
     implied_home = safe_inverse(odd_home)
     implied_draw = safe_inverse(odd_draw)
     implied_away = safe_inverse(odd_away)
+    implied_over25 = safe_inverse(over25_odds)
+    implied_under25 = safe_inverse(under25_odds)
 
     row: dict[str, float | int | str] = {
         "Division": LEAGUE_DIVISIONS.get(match.season.league.name, match.season.league.name),
@@ -88,13 +90,13 @@ def build_runtime_feature_row(db: Session, match: Match) -> dict[str, float | in
         "OddHome": odd_home,
         "OddDraw": odd_draw,
         "OddAway": odd_away,
-        "Over25": MISSING_ODDS_VALUE,
-        "Under25": MISSING_ODDS_VALUE,
+        "Over25": over25_odds,
+        "Under25": under25_odds,
         "ImpliedHomeWin": implied_home,
         "ImpliedDraw": implied_draw,
         "ImpliedAwayWin": implied_away,
-        "ImpliedOver25": MISSING_ODDS_VALUE,
-        "ImpliedUnder25": MISSING_ODDS_VALUE,
+        "ImpliedOver25": implied_over25,
+        "ImpliedUnder25": implied_under25,
         "BookmakerMargin1X2": implied_home + implied_draw + implied_away,
     }
 
