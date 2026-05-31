@@ -496,6 +496,8 @@ It is a thin Kotlin + Jetpack Compose client for the FastAPI backend:
 - it does not run trained models locally;
 - it calls FastAPI endpoints through Retrofit.
 
+The Android app remains tablet-first, with basic phone support improved for the MVP. Login and registration forms preserve input across configuration changes, are vertically scrollable, and use IME padding for keyboard-safe interaction. Match Details, Prediction Result, and Profile are vertically scrollable. Prediction Result uses one column for prediction metric cards on narrow screens and two columns on wider tablet screens. Match List tabs and filters are horizontally scrollable on narrow screens. Full `WindowSizeClass` support, tablet master-detail navigation, and landscape-specific layouts are not implemented yet.
+
 Implemented screens:
 
 - splash screen with token validation;

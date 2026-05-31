@@ -93,6 +93,18 @@ For tablet layout, prefer a list-detail layout on wide screens:
 - right pane: selected match details and prediction result;
 - single-pane navigation for narrower emulator profiles.
 
+## Adaptive Layout Status
+
+The Android app remains tablet-first. Basic phone support has been improved without adding a separate adaptive architecture:
+
+- Login and Register preserve user input across configuration changes with `rememberSaveable`.
+- Login and Register are vertically scrollable and use IME padding so the keyboard does not hide the form controls.
+- Match Details, Prediction Result, and Profile are vertically scrollable to avoid clipped content on phones and landscape-sized heights.
+- Prediction Result uses one column for prediction metric cards on narrow screens and keeps two columns on wider tablet screens.
+- Match List tabs and filters are horizontally scrollable on narrow screens.
+
+Full adaptive behavior is not implemented yet. The app does not use `WindowSizeClass`, tablet master-detail navigation, or landscape-specific layouts. These remain post-MVP improvements.
+
 ## API Layer Recommendation
 
 Implemented Retrofit service shape:

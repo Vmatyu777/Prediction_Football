@@ -6,6 +6,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -62,6 +64,7 @@ fun MatchDetailsScreen(
     ScreenScaffold(
         title = stringResource(R.string.match_details),
         subtitle = stringResource(R.string.match_details_subtitle),
+        modifier = Modifier.verticalScroll(rememberScrollState()),
         actions = {
             OutlinedButton(onClick = onBack) {
                 Text(stringResource(R.string.back))

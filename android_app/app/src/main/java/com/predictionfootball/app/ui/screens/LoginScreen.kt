@@ -6,17 +6,19 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -52,8 +54,8 @@ fun LoginScreen(
     onLogin: (String, String) -> Unit,
     onRegisterClick: () -> Unit,
 ) {
-    var usernameOrEmail by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
+    var usernameOrEmail by rememberSaveable { mutableStateOf("") }
+    var password by rememberSaveable { mutableStateOf("") }
     val context = LocalContext.current
 
     LaunchedEffect(state.errorMessage) {
@@ -65,6 +67,9 @@ fun LoginScreen(
     ScreenScaffold(
         title = "Вход",
         subtitle = "Авторизация пользователя",
+        modifier = Modifier
+            .imePadding()
+            .verticalScroll(rememberScrollState()),
     ) {
         InfoCard(modifier = Modifier.fillMaxWidth()) {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {

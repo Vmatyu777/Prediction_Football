@@ -5,6 +5,9 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -12,13 +15,13 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.predictionfootball.app.models.AuthUserDto
 import com.predictionfootball.app.ui.formatBackendUtcDateTime
 import com.predictionfootball.app.ui.components.ErrorContent
 import com.predictionfootball.app.ui.components.InfoCard
-import com.predictionfootball.app.ui.components.KeyValueRow
 import com.predictionfootball.app.ui.components.LoadingContent
 import com.predictionfootball.app.ui.components.PrimaryActionButton
 import com.predictionfootball.app.ui.components.ScreenScaffold
@@ -63,6 +66,7 @@ fun ProfileScreen(
     ScreenScaffold(
         title = "Профиль",
         subtitle = "Данные пользователя",
+        modifier = Modifier.verticalScroll(rememberScrollState()),
         actions = {
             OutlinedButton(onClick = onBack) {
                 Text("К матчам")
@@ -92,13 +96,13 @@ private fun ProfileContent(
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         InfoCard(modifier = Modifier.fillMaxWidth()) {
-            KeyValueRow("Логин", state.user?.username.orEmpty())
+            ProfileField("Логин", state.user?.username.orEmpty())
             Spacer(modifier = Modifier.height(8.dp))
-            KeyValueRow("Email", state.user?.email.orEmpty())
+            ProfileField("Email", state.user?.email.orEmpty())
             Spacer(modifier = Modifier.height(8.dp))
-            KeyValueRow("Роль", state.user?.role.orEmpty())
+            ProfileField("Роль", state.user?.role.orEmpty())
             Spacer(modifier = Modifier.height(8.dp))
-            KeyValueRow("Создан", formatBackendUtcDateTime(state.user?.createdAt.orEmpty()))
+            ProfileField("Создан", formatBackendUtcDateTime(state.user?.createdAt.orEmpty()))
         }
         PrimaryActionButton(
             text = "История прогнозов",
@@ -108,6 +112,23 @@ private fun ProfileContent(
         OutlinedButton(onClick = onLogout, modifier = Modifier.fillMaxWidth()) {
             Text("Выйти")
         }
+    }
+}
+
+@Composable
+private fun ProfileField(label: String, value: String) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(
+            text = value,
+            modifier = Modifier.fillMaxWidth(),
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.SemiBold,
+        )
     }
 }
 

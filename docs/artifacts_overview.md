@@ -59,6 +59,8 @@ This document gives a short engineering overview of the current project artifact
 - The app stores JWT tokens in `SharedPreferences`, attaches them as bearer tokens through OkHttp, validates them on splash with `GET /auth/me`, and clears them on logout or `401`/`403`.
 - The match list supports league and season filters. The prediction history screen displays the latest user query per `prediction_id`, compares completed-match predictions with factual results, and hides internal database IDs from users.
 - The UI uses Russian user-facing labels through display mapping helpers while keeping team names, league names, and country names unchanged.
+- The app remains tablet-first, with basic phone support improved for the MVP. Login and Register preserve input across configuration changes, are scrollable, and use keyboard-safe IME padding. Match Details, Prediction Result, and Profile are scrollable. Prediction Result uses one column on narrow screens and two columns on wider tablet screens. Match List tabs and filters are horizontally scrollable on narrow screens.
+- Full `WindowSizeClass` handling, tablet master-detail navigation, and landscape-specific layouts are not implemented yet.
 - Backend `prediction.created_at` values are stored as UTC and displayed by Android in the local timezone of the emulator or tablet.
 - Android Emulator should use `http://10.0.2.2:8000/`; a physical tablet should use `http://<LAN_IP>:8000/`.
 - Override the backend URL for a physical device with `-PapiBaseUrl=http://<LAN_IP>:8000/`.

@@ -198,6 +198,12 @@ Current design decision: exact score must not drive the final system because it 
 - Android prediction results display outcome labels with full user-facing names, not short betting notation.
 - Team names, league names, and country names should remain as returned by the backend.
 - Backend `prediction.created_at` is stored as UTC; Android displays it in the local timezone of the emulator/tablet.
+- The Android UI remains tablet-first, with basic phone support improved for the MVP.
+- Login and Register preserve input across configuration changes, are vertically scrollable, and use keyboard-safe IME padding.
+- Match Details, Prediction Result, and Profile are vertically scrollable.
+- Prediction Result uses one column on narrow screens and two columns on wider tablet screens.
+- Match List tabs and filters are horizontally scrollable on narrow screens.
+- Full `WindowSizeClass` handling, tablet master-detail navigation, and landscape-specific layouts are not implemented yet.
 - Android Emulator backend URL: `http://10.0.2.2:8000/`.
 - Physical tablet backend URL: `http://<LAN_IP>:8000/`.
 - Android debug builds use `BuildConfig.API_BASE_URL`; override it with `-PapiBaseUrl=http://<LAN_IP>:8000/` for a physical tablet.

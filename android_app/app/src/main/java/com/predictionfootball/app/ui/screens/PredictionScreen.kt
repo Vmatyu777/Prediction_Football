@@ -1,11 +1,14 @@
 package com.predictionfootball.app.ui.screens
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -56,6 +59,7 @@ fun PredictionScreen(
     ScreenScaffold(
         title = stringResource(R.string.prediction_result),
         subtitle = stringResource(R.string.prediction_result_subtitle),
+        modifier = Modifier.verticalScroll(rememberScrollState()),
         actions = {
             OutlinedButton(onClick = onBack) {
                 Text(stringResource(R.string.back))
@@ -84,27 +88,7 @@ private fun PredictionContent(prediction: PredictionDto) {
             ProbabilityRow(prediction.outcomeProbabilities)
         }
 
-        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            InfoCard(modifier = Modifier.weight(1f)) {
-                KeyValueRow(stringResource(R.string.btts), displayBinaryLabel(prediction.btts))
-                ProbabilityRow(prediction.bttsProbabilities)
-            }
-            InfoCard(modifier = Modifier.weight(1f)) {
-                KeyValueRow(stringResource(R.string.over25), displayBinaryLabel(prediction.over25))
-                ProbabilityRow(prediction.over25Probabilities)
-            }
-        }
-
-        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            InfoCard(modifier = Modifier.weight(1f)) {
-                KeyValueRow(stringResource(R.string.corners_over95), displayBinaryLabel(prediction.cornersOver95))
-                ProbabilityRow(prediction.cornersOver95Probabilities)
-            }
-            InfoCard(modifier = Modifier.weight(1f)) {
-                KeyValueRow(stringResource(R.string.yellow_cards_over35), displayBinaryLabel(prediction.yellowCardsOver35))
-                ProbabilityRow(prediction.yellowCardsOver35Probabilities)
-            }
-        }
+        PredictionMetricCards(prediction)
 
         InfoCard(modifier = Modifier.fillMaxWidth()) {
             KeyValueRow(stringResource(R.string.exact_score), prediction.exactScore)
@@ -117,6 +101,86 @@ private fun PredictionContent(prediction: PredictionDto) {
                 textAlign = TextAlign.End,
             )
         }
+    }
+}
+
+@Composable
+private fun PredictionMetricCards(prediction: PredictionDto) {
+    BoxWithConstraints {
+        val useSingleColumn = maxWidth < 600.dp
+
+        if (useSingleColumn) {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                PredictionMetricCard(
+                    label = stringResource(R.string.btts),
+                    value = displayBinaryLabel(prediction.btts),
+                    probabilities = prediction.bttsProbabilities,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                PredictionMetricCard(
+                    label = stringResource(R.string.over25),
+                    value = displayBinaryLabel(prediction.over25),
+                    probabilities = prediction.over25Probabilities,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                PredictionMetricCard(
+                    label = stringResource(R.string.corners_over95),
+                    value = displayBinaryLabel(prediction.cornersOver95),
+                    probabilities = prediction.cornersOver95Probabilities,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                PredictionMetricCard(
+                    label = stringResource(R.string.yellow_cards_over35),
+                    value = displayBinaryLabel(prediction.yellowCardsOver35),
+                    probabilities = prediction.yellowCardsOver35Probabilities,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        } else {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    PredictionMetricCard(
+                        label = stringResource(R.string.btts),
+                        value = displayBinaryLabel(prediction.btts),
+                        probabilities = prediction.bttsProbabilities,
+                        modifier = Modifier.weight(1f),
+                    )
+                    PredictionMetricCard(
+                        label = stringResource(R.string.over25),
+                        value = displayBinaryLabel(prediction.over25),
+                        probabilities = prediction.over25Probabilities,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    PredictionMetricCard(
+                        label = stringResource(R.string.corners_over95),
+                        value = displayBinaryLabel(prediction.cornersOver95),
+                        probabilities = prediction.cornersOver95Probabilities,
+                        modifier = Modifier.weight(1f),
+                    )
+                    PredictionMetricCard(
+                        label = stringResource(R.string.yellow_cards_over35),
+                        value = displayBinaryLabel(prediction.yellowCardsOver35),
+                        probabilities = prediction.yellowCardsOver35Probabilities,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PredictionMetricCard(
+    label: String,
+    value: String,
+    probabilities: Map<String, Double>,
+    modifier: Modifier = Modifier,
+) {
+    InfoCard(modifier = modifier) {
+        KeyValueRow(label, value)
+        ProbabilityRow(probabilities)
     }
 }
 
