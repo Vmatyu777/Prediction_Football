@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from sqlalchemy import create_engine
+from sqlalchemy.engine import make_url
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
 from src.api.config import DATABASE_URL
@@ -10,10 +11,12 @@ class Base(DeclarativeBase):
     pass
 
 
-engine = create_engine(
-    DATABASE_URL,
-    connect_args={"check_same_thread": False},
-)
+database_url = make_url(DATABASE_URL)
+engine_kwargs = {}
+if database_url.get_backend_name() == "sqlite":
+    engine_kwargs["connect_args"] = {"check_same_thread": False}
+
+engine = create_engine(DATABASE_URL, **engine_kwargs)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 

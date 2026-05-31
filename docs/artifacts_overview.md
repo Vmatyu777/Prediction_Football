@@ -7,8 +7,8 @@ This document gives a short engineering overview of the current project artifact
 - `docs/final_app_models.md` describes the final local model package for future backend/API usage: final tasks, model types, feature sets, local model paths, thresholds, post-processing, and final test metrics.
 - `configs/final_app_models.json` stores machine-readable backend metadata for final model paths, feature-set names, thresholds, reconciliation priority order, and exact-score clipping range.
 - `src/api/` contains the FastAPI backend for the Android mobile application, including auth endpoints, match browsing, prediction, persisted prediction details, and user prediction history.
-- `src/api/database/` contains the initial SQLite physical database layer for backend persistence.
-- `android_app/` contains the Android tablet MVP client. It is a Kotlin + Jetpack Compose thin client that calls FastAPI through Retrofit and does not run ML models, calculate ML features, or access SQLite directly.
+- `src/api/database/` contains the SQLAlchemy physical database layer for backend persistence. PostgreSQL 16 through Docker Compose is the primary production-like mode; SQLite is retained as a local fallback when `DATABASE_URL` is not set.
+- `android_app/` contains the Android tablet MVP client. It is a Kotlin + Jetpack Compose thin client that calls FastAPI through Retrofit and does not run ML models, calculate ML features, or access any database directly.
 - `requirements.txt` pins the Python runtime dependencies used by the backend, model loading, and auth flow.
 
 ## Python Scripts
@@ -39,22 +39,22 @@ This document gives a short engineering overview of the current project artifact
 - `src/api/services/model_registry.py` reads `configs/final_app_models.json` and loads final local model binaries from `models/final_app/`.
 - `src/api/services/prediction_service.py` contains model inference, exact-score clipping, reconciliation, prediction persistence, and model-aware prediction reuse by `match_id` plus deployed outcome `model_id`.
 - `src/api/database/clear_runtime_data.py` is a development-only cleanup script for runtime/demo data. It clears `users`, `user_query_history`, `predictions`, and `prediction_characteristic_values` while preserving football domain data, odds, teams, model metadata, metrics, and ELO ratings.
-- `src/api/database/session.py` configures the SQLAlchemy SQLite engine, session factory, and declarative base.
+- `src/api/database/session.py` configures the SQLAlchemy engine, session factory, and declarative base from `DATABASE_URL`.
 - `src/api/database/models.py` stores SQLAlchemy ORM models for the physical database schema.
-- `src/api/database/init_db.py` creates the local SQLite database file and all tables.
+- `src/api/database/init_db.py` creates all database tables for the configured SQL database.
 - `src/api/database/seed_db.py` inserts minimal reference data for statuses, match sources, user roles, model types, metrics, prediction characteristics, and bookmakers.
-- `src/api/database/seed_final_models.py` inserts final deployed model metadata and main final test metrics into SQLite.
-- `src/api/database/load_football_data.py` loads cleaned domain football data from `data/interim/matches_top5_2018_2025_clean.csv` into SQLite.
-- `src/api/database/load_elo_ratings.py` loads ELO rating history from `data/raw/EloRatings.csv` for teams already present in SQLite, with root CSV fallback for local compatibility.
+- `src/api/database/seed_final_models.py` inserts final deployed model metadata and main final test metrics into the configured SQL database.
+- `src/api/database/load_football_data.py` loads cleaned domain football data from `data/interim/matches_top5_2018_2025_clean.csv` into the configured SQL database.
+- `src/api/database/load_elo_ratings.py` loads ELO rating history from `data/raw/EloRatings.csv` for teams already present in the configured SQL database, with root CSV fallback for local compatibility.
 - `src/api/database/seed_demo_upcoming_matches.py` creates development demo upcoming matches as regular `matches` rows with `source=demo`, `Market Average` odds, and no match result.
-- `src/analysis/prediction_quality_analysis.py` computes historical prediction-quality reports without storing prediction rows in SQLite.
-- `src/api/services/feature_service.py` builds runtime model feature vectors from SQLite data using training-compatible feature names, ordering, ELO logic, odds transforms, and rolling-history calculations.
+- `src/analysis/prediction_quality_analysis.py` computes historical prediction-quality reports without storing prediction rows in the application database.
+- `src/api/services/feature_service.py` builds runtime model feature vectors from SQL database data using training-compatible feature names, ordering, ELO logic, odds transforms, and rolling-history calculations.
 - `src/api/services/match_service.py` contains SQLAlchemy query helpers for match listing, match details, upcoming matches, recent matches, sampled recent matches, and showcase examples.
 
 ## Android App
 
 - `android_app/` contains the Android tablet MVP application.
-- The app is a thin client over FastAPI: it does not generate ML features, does not access SQLite directly, does not run trained models locally, and does not implement reconciliation locally.
+- The app is a thin client over FastAPI: it does not generate ML features, does not access the database directly, does not run trained models locally, and does not implement reconciliation locally.
 - Implemented screens: splash, login, registration, match list, match details, prediction result, profile, and prediction history.
 - The app stores JWT tokens in `SharedPreferences`, attaches them as bearer tokens through OkHttp, validates them on splash with `GET /auth/me`, and clears them on logout or `401`/`403`.
 - The match list supports league and season filters. The prediction history screen displays the latest user query per `prediction_id`, compares completed-match predictions with factual results, and hides internal database IDs from users.
@@ -78,7 +78,7 @@ Data directory roles:
 - `data/raw/` stores canonical source CSV files such as `Matches.csv` and `EloRatings.csv`.
 - `data/interim/` stores cleaned and feature-engineered intermediate CSV files.
 - `data/processed/` is reserved for processed export artifacts.
-- `data/app/` stores the local SQLite application database.
+- `data/app/` stores the local SQLite fallback application database.
 
 ## Reports
 
@@ -204,7 +204,7 @@ Backend/API code should load model binaries from `models/final_app/`, read light
 
 ## Backend API Skeleton
 
-The current backend skeleton is intentionally lightweight and uses SQLite runtime feature generation for match-based prediction.
+The current backend is intentionally lightweight and uses SQL database-backed runtime feature generation for match-based prediction.
 
 Run command:
 
@@ -212,28 +212,43 @@ Run command:
 uvicorn src.api.main:app --reload
 ```
 
+PostgreSQL 16 through Docker Compose is the primary production-like database mode:
+
+```bash
+cp .env.example .env
+docker compose up -d postgres
+python src/api/database/init_db.py
+python src/api/database/seed_db.py
+python src/api/database/seed_final_models.py
+python src/api/database/load_football_data.py
+python src/api/database/load_elo_ratings.py
+python src/api/database/seed_demo_upcoming_matches.py
+```
+
+The `.env` file is local and must not be committed. SQLite remains available as a fallback when `DATABASE_URL` is not set.
+
 Endpoints:
 
 - `GET /health` returns service status.
-- `GET /db/health` checks SQLite connectivity.
+- `GET /db/health` checks configured database connectivity and should report `database=postgresql` in PostgreSQL mode.
 - `GET /models` returns final model metadata for each configured task.
 - `POST /auth/register` creates a user with a bcrypt password hash.
 - `POST /auth/login` returns a JWT bearer token.
 - `GET /auth/me` validates and returns the current user.
 - `GET /users/me/history` returns authenticated prediction query history.
 - `POST /predict` returns a unified prediction response for sample/manual JSON input.
-- `GET /matches` returns paginated real matches from SQLite with optional league, season, and date filters.
+- `GET /matches` returns paginated real matches from the configured SQL database with optional league, season, and date filters.
 - `GET /matches/{match_id}` returns match details with teams, result, and odds.
 - `GET /matches/upcoming` returns matches without result.
 - `GET /matches/recent` returns recent finished matches.
 - `GET /matches/recent/sampled` returns a balanced recent sample across league-season pairs for the Android filters.
 - `GET /matches/showcase` returns historical demonstration examples selected from prediction-quality reports. These examples show strong historical matches for the MVP demo and do not replace aggregate model metrics.
-- `POST /predict/{match_id}` builds runtime features from SQLite data, runs final models, reconciles outputs, stores prediction rows, and returns the final prediction.
+- `POST /predict/{match_id}` builds runtime features from SQL database data, runs final models, reconciles outputs, stores prediction rows, and returns the final prediction.
 - `GET /predictions/{prediction_id}` returns a persisted prediction with characteristic values.
 
-## SQLite Database Layer
+## Database Layer
 
-The local SQLite database is stored at:
+The primary local database mode is PostgreSQL 16 through Docker Compose. The local SQLite fallback database is stored at:
 
 ```text
 data/app/football.db
@@ -242,34 +257,16 @@ data/app/football.db
 Create the physical schema:
 
 ```bash
+docker compose up -d postgres
 python src/api/database/init_db.py
-```
-
-Seed minimal reference data:
-
-```bash
 python src/api/database/seed_db.py
-```
-
-Seed final deployed model metadata and metrics:
-
-```bash
 python src/api/database/seed_final_models.py
-```
-
-Load ELO rating history:
-
-```bash
-python src/api/database/load_elo_ratings.py
-```
-
-Load cleaned football domain data:
-
-```bash
 python src/api/database/load_football_data.py
+python src/api/database/load_elo_ratings.py
+python src/api/database/seed_demo_upcoming_matches.py
 ```
 
-The football loader uses `data/interim/matches_top5_2018_2025_clean.csv` as the source for domain data. It fills countries, leagues, seasons, teams, matches, match results, bookmakers, and odds. Odds rows store 1X2 odds plus Over/Under 2.5 goal-total odds so runtime odds features match the training feature sets. SQLite also stores ELO rating history, final deployed model metadata, and main final test metrics. `POST /predict/{match_id}` generates runtime features from SQLite instead of training feature CSV files, persists predictions and prediction characteristic values, and reuses an existing prediction for the same `match_id` and deployed outcome `model_id`. A future retrained/deployed outcome model with a different `model_id` can create a new prediction for the same match. Authenticated requests add rows to `user_query_history`; this table stores user actions and can contain several rows for the same `prediction_id`.
+The football loader uses `data/interim/matches_top5_2018_2025_clean.csv` as the source for domain data. It fills countries, leagues, seasons, teams, matches, match results, bookmakers, and odds. Odds rows store 1X2 odds plus Over/Under 2.5 goal-total odds so runtime odds features match the training feature sets. The configured SQL database also stores ELO rating history, final deployed model metadata, and main final test metrics. `POST /predict/{match_id}` generates runtime features from SQL database rows instead of training feature CSV files, persists predictions and prediction characteristic values, and reuses an existing prediction for the same `match_id` and deployed outcome `model_id`. A future retrained/deployed outcome model with a different `model_id` can create a new prediction for the same match. Authenticated requests add rows to `user_query_history`; this table stores user actions and can contain several rows for the same `prediction_id`.
 
 Development-only cleanup:
 

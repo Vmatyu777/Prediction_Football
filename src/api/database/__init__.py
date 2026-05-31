@@ -1,1 +1,1 @@
-"""SQLite database layer for the FastAPI backend."""
+"""Database layer for the FastAPI backend."""

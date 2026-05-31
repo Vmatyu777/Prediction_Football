@@ -17,7 +17,7 @@ Implemented:
 - exact score regression pipeline;
 - priority-based consistency and reconciliation layer;
 - final app model package metadata for future backend/API;
-- FastAPI backend with SQLite runtime feature generation for Android/mobile usage;
+- FastAPI backend with PostgreSQL runtime persistence for Android/mobile usage, plus SQLite legacy fallback;
 - Android tablet MVP client under `android_app/`;
 - mobile authentication flow with registration, login, JWT token storage, profile, and prediction history.
 
@@ -46,7 +46,7 @@ Local data directory roles:
 - `data/raw/`: canonical source CSV files.
 - `data/interim/`: cleaned and feature-engineered intermediate CSV files.
 - `data/processed/`: reserved for processed export artifacts.
-- `data/app/`: local SQLite application database.
+- `data/app/`: local SQLite fallback database for legacy/development runs without `DATABASE_URL`.
 
 ## Data And Feature Pipeline
 
@@ -406,7 +406,7 @@ The future backend/API should load models from `models/final_app/`, use the trac
 
 ## Backend API Skeleton
 
-The initial FastAPI backend lives under:
+The FastAPI backend lives under:
 
 ```text
 src/api/
@@ -449,9 +449,17 @@ Install Python runtime dependencies with:
 pip install -r requirements.txt
 ```
 
-The pinned backend/auth stack includes FastAPI, Uvicorn, Pydantic, SQLAlchemy, pandas, NumPy, scikit-learn, CatBoost, PyJWT, `passlib[bcrypt]`, and `bcrypt==4.0.1`.
+The pinned backend/auth stack includes FastAPI, Uvicorn, Pydantic, SQLAlchemy, `psycopg[binary]`, `python-dotenv`, pandas, NumPy, scikit-learn, CatBoost, PyJWT, `passlib[bcrypt]`, and `bcrypt==4.0.1`.
 
-The `/predict` endpoint remains available for sample/manual JSON input. The match-based `/predict/{match_id}` flow loads final models from `models/final_app/`, reads metadata from `configs/final_app_models.json`, generates runtime features from SQLite, applies the priority-based reconciliation layer, and stores prediction outputs.
+PostgreSQL 16 through Docker Compose is the primary production-like database mode. Copy `.env.example` to `.env`, keep `.env` local and uncommitted, then start PostgreSQL:
+
+```bash
+docker compose up -d postgres
+```
+
+SQLite is preserved as a legacy/local fallback when `DATABASE_URL` is not set. In the PostgreSQL mode, `GET /db/health` should return `database=postgresql`.
+
+The `/predict` endpoint remains available for sample/manual JSON input. The match-based `/predict/{match_id}` flow loads final models from `models/final_app/`, reads metadata from `configs/final_app_models.json`, generates runtime features from the configured SQL database, applies the priority-based reconciliation layer, and stores prediction outputs.
 
 Repeated `POST /predict/{match_id}` calls reuse an existing prediction when the same `match_id` and the same deployed outcome `model_id` are already stored. If the deployed outcome model changes after future retraining and receives a different `model_id`, the backend can create a new prediction for the same match. This avoids duplicate `prediction_characteristic_values` for repeated requests while preserving old predictions.
 
@@ -484,7 +492,7 @@ android_app/
 It is a thin Kotlin + Jetpack Compose client for the FastAPI backend:
 
 - it does not calculate ML features;
-- it does not access SQLite directly;
+- it does not access PostgreSQL, SQLite, or any backend database directly;
 - it does not run trained models locally;
 - it calls FastAPI endpoints through Retrofit.
 
@@ -519,48 +527,36 @@ cd android_app
 
 `10.0.2.2` works only in Android Emulator. A physical tablet must use the laptop's LAN IP address and the backend must listen on `0.0.0.0:8000`.
 
-## SQLite Database Layer
+## Database Layer
 
-The initial SQLite database layer lives under:
+The SQLAlchemy database layer lives under:
 
 ```text
 src/api/database/
 ```
 
-Local database path:
+Primary database mode:
+
+```text
+PostgreSQL 16 through Docker Compose
+```
+
+Local SQLite fallback path:
 
 ```text
 data/app/football.db
 ```
 
-Create tables:
+Create tables and load the local PostgreSQL database:
 
 ```bash
+docker compose up -d postgres
 python src/api/database/init_db.py
-```
-
-Seed minimal reference data:
-
-```bash
 python src/api/database/seed_db.py
-```
-
-Seed final deployed model metadata and metrics:
-
-```bash
 python src/api/database/seed_final_models.py
-```
-
-Load ELO rating history for existing teams:
-
-```bash
-python src/api/database/load_elo_ratings.py
-```
-
-Load cleaned football domain data:
-
-```bash
 python src/api/database/load_football_data.py
+python src/api/database/load_elo_ratings.py
+python src/api/database/seed_demo_upcoming_matches.py
 ```
 
 The loader uses:
@@ -571,9 +567,9 @@ data/interim/matches_top5_2018_2025_clean.csv
 
 The ELO loader uses `data/raw/EloRatings.csv` as its primary source and keeps the root `EloRatings.csv` path only as a local fallback.
 
-It fills countries, leagues, seasons, teams, matches, match results, bookmakers, and odds. Odds rows store 1X2 market odds and Over/Under 2.5 goal-total odds so runtime features can match the deployed training feature sets. SQLite also stores ELO rating history and lightweight metadata for the final deployed ML models and their main test metrics.
+It fills countries, leagues, seasons, teams, matches, match results, bookmakers, and odds. Odds rows store 1X2 market odds and Over/Under 2.5 goal-total odds so runtime features can match the deployed training feature sets. The configured SQL database also stores ELO rating history and lightweight metadata for the final deployed ML models and their main test metrics.
 
-`POST /predict/{match_id}` builds model feature vectors from SQLite match, odds, ELO, and rolling match history, calls the existing final models, applies the reconciliation layer, stores the prediction, and returns the final user-facing JSON. Repeated calls for the same match and deployed outcome model reuse the stored prediction instead of creating duplicates.
+`POST /predict/{match_id}` builds model feature vectors from SQL match, odds, ELO, and rolling match history, calls the existing final models, applies the reconciliation layer, stores the prediction, and returns the final user-facing JSON. Repeated calls for the same match and deployed outcome model reuse the stored prediction instead of creating duplicates.
 
 When the request includes a valid bearer token, the backend stores a `user_query_history` row. This table is an action log: repeated user requests can create multiple history rows for the same `prediction_id`, while Android displays only the latest row per prediction to avoid visual duplicates.
 
@@ -585,4 +581,4 @@ python src/api/database/clear_runtime_data.py
 
 This script clears only runtime/demo tables: `users`, `user_query_history`, `predictions`, and `prediction_characteristic_values`. It does not delete football domain data, odds, teams, leagues, seasons, model metadata, model metrics, or ELO ratings.
 
-Runtime feature generation for `POST /predict/{match_id}` lives in `src/api/services/feature_service.py`. It uses SQLite as the runtime source and builds the same deployed feature sets used by the final models: `v1_only`, `v1_score_related`, and `v1_yellow_related`. The service follows the training feature names and ordering from `src/features/feature_registry.py`, reuses the same ELO, odds transform, and rolling-history formulas, computes implied 1X2 and Over/Under 2.5 probabilities from stored odds, and reports debug checks for feature count, missing values, NaN values, and ordering.
+Runtime feature generation for `POST /predict/{match_id}` lives in `src/api/services/feature_service.py`. It uses the configured SQL database as the runtime source and builds the same deployed feature sets used by the final models: `v1_only`, `v1_score_related`, and `v1_yellow_related`. The service follows the training feature names and ordering from `src/features/feature_registry.py`, reuses the same ELO, odds transform, and rolling-history formulas, computes implied 1X2 and Over/Under 2.5 probabilities from stored odds, and reports debug checks for feature count, missing values, NaN values, and ordering.

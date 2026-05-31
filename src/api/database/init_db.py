@@ -14,13 +14,15 @@ from src.api.database.session import Base, engine
 
 
 def init_db() -> None:
-    DATABASE_PATH.parent.mkdir(parents=True, exist_ok=True)
+    if engine.dialect.name == "sqlite":
+        DATABASE_PATH.parent.mkdir(parents=True, exist_ok=True)
     Base.metadata.create_all(bind=engine)
 
 
 def main() -> None:
     init_db()
-    print(f"SQLite database initialized: {DATABASE_PATH}")
+    target = str(DATABASE_PATH) if engine.dialect.name == "sqlite" else engine.url.render_as_string(hide_password=True)
+    print(f"Database initialized ({engine.dialect.name}): {target}")
 
 
 if __name__ == "__main__":

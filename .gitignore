@@ -6,10 +6,13 @@ __pycache__/
 .ruff_cache/
 .venv/
 venv/
+.python_pg_deps/
+.docker_temp_config/
 
 # Local environment
 .env
 .env.*
+!.env.example
 
 # Large and generated data
 Matches.csv

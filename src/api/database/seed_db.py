@@ -94,7 +94,7 @@ def seed_db() -> dict[str, int]:
 
 def main() -> None:
     inserted_counts = seed_db()
-    print("SQLite reference data seed completed.")
+    print("Reference data seed completed.")
     for table_name, count in inserted_counts.items():
         print(f"{table_name}: inserted {count}")
 

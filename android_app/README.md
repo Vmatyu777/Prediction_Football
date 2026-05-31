@@ -4,7 +4,7 @@ Android tablet MVP client for the existing FastAPI backend in this monorepo.
 
 ## Scope
 
-The Android application is a thin client. It must not train models, generate ML features, access SQLite directly, or implement the reconciliation layer locally. Final prediction logic stays in the backend:
+The Android application is a thin client. It must not train models, generate ML features, access PostgreSQL/SQLite directly, use Room, or implement the reconciliation layer locally. Final prediction logic stays in the backend:
 
 - match browsing: `GET /matches`, `GET /matches/{match_id}`, `GET /matches/upcoming`, `GET /matches/recent`, `GET /matches/recent/sampled`, `GET /matches/showcase`;
 - prediction: `POST /predict/{match_id}`;
@@ -171,8 +171,19 @@ The default debug build uses the emulator URL through `BuildConfig.API_BASE_URL`
 Run backend for emulator/device testing:
 
 ```bash
+cd ..
+cp .env.example .env
+docker compose up -d postgres
+python src/api/database/init_db.py
+python src/api/database/seed_db.py
+python src/api/database/seed_final_models.py
+python src/api/database/load_football_data.py
+python src/api/database/load_elo_ratings.py
+python src/api/database/seed_demo_upcoming_matches.py
 uvicorn src.api.main:app --host 0.0.0.0 --port 8000 --reload
 ```
+
+PostgreSQL 16 through Docker Compose is the primary production-like backend database mode. SQLite remains a backend-only legacy/local fallback when `DATABASE_URL` is not set. The `.env.example` file is the tracked template; `.env` is local and must not be committed. Verify backend database connectivity with `GET /db/health`; in PostgreSQL mode it should return `database=postgresql`.
 
 For local Android emulator only, `--host 127.0.0.1` also works with `10.0.2.2`, but `0.0.0.0` is more convenient when testing on a real tablet.
 

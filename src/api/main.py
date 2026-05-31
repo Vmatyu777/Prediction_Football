@@ -6,7 +6,7 @@ from fastapi import Depends, FastAPI, HTTPException, Query, status
 from sqlalchemy import text
 
 from src.api.config import APP_TITLE, APP_VERSION
-from src.api.database.session import SessionLocal
+from src.api.database.session import SessionLocal, engine
 from src.api.schemas import (
     AuthTokenResponse,
     AuthUserResponse,
@@ -61,7 +61,7 @@ def health() -> HealthResponse:
 def db_health() -> DatabaseHealthResponse:
     with SessionLocal() as db:
         db.execute(text("select 1"))
-    return DatabaseHealthResponse(status="ok", database="sqlite")
+    return DatabaseHealthResponse(status="ok", database=engine.dialect.name)
 
 
 @app.get("/models", response_model=list[ModelSummary])
