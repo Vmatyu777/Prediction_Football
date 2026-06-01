@@ -461,7 +461,21 @@ SQLite is preserved as a legacy/local fallback when `DATABASE_URL` is not set. I
 
 API-FOOTBALL / API-SPORTS is the selected single external source for future fixtures, match results, match statistics, and odds. The API key must be stored only in local `.env` as `API_FOOTBALL_API_KEY`; `.env.example` contains only an empty template value. External API identity is stored through `external_sources` and nullable external fields on `matches` so API-loaded matches can be upserted without duplicates while historical and demo matches can keep `NULL` external ids.
 
-Scheduled external sync is not implemented yet. Admin-triggered retraining or monthly retraining is also future work and is not automated by the current backend.
+API-FOOTBALL fixtures sync is implemented as a manual CLI script:
+
+```bash
+python src/api/database/sync_api_football.py --league "Premier League" --season 2026 --next 10 --dry-run
+```
+
+The fixtures sync stores only scheduled, postponed, and cancelled API fixtures. Finished fixtures are skipped until the separate result/statistics sync is implemented. Team matching is intentionally conservative: the sync first tries exact `(country, team name)` matching, then an in-code alias mapping for known API-FOOTBALL versus historical-data naming differences. New teams and leagues are not created automatically because duplicate teams would break runtime ML feature history.
+
+API-FOOTBALL odds sync is implemented as a manual CLI script using the existing `odds` table:
+
+```bash
+python src/api/database/sync_api_football_odds.py --fixture-id 123456 --dry-run
+```
+
+Odds sync stores only complete 1X2 and Over/Under 2.5 odds sets. It does not create fake odds and skips incomplete bookmaker payloads with warnings. Result/statistics update is not implemented yet. Scheduled automation is future work. Recommended future sync frequency is: upcoming fixtures daily; odds daily for matches in the next 1-7 days; results/statistics 1-2 times daily after result sync is implemented. Admin-triggered retraining or monthly retraining is also future work and is not automated by the current backend.
 
 The `/predict` endpoint remains available for sample/manual JSON input. The match-based `/predict/{match_id}` flow loads final models from `models/final_app/`, reads metadata from `configs/final_app_models.json`, generates runtime features from the configured SQL database, applies the priority-based reconciliation layer, and stores prediction outputs.
 

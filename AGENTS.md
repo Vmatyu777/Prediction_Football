@@ -147,7 +147,13 @@ Current design decision: exact score must not drive the final system because it 
 - User credential validation rules are: username must contain only Latin letters, digits, `_`, and `-`; email must be ASCII email format; password must be at least 8 printable ASCII characters with at least one Latin letter and one digit.
 - API-FOOTBALL / API-SPORTS is the selected single external sports data source for future fixtures, match results, match statistics, and odds.
 - API-FOOTBALL credentials must be stored only in local `.env` as `API_FOOTBALL_API_KEY`; `.env.example` must contain only an empty template value.
-- Scheduled external sync, admin-triggered retraining, and monthly retraining are future work and are not automated now.
+- API-FOOTBALL fixtures sync is implemented as a manual CLI script in `src/api/database/sync_api_football.py`.
+- Fixtures sync stores only scheduled, postponed, and cancelled API fixtures. Finished fixtures are skipped until result/statistics sync is implemented.
+- Team matching uses exact `(country, team name)` lookup plus in-code aliases for known API-FOOTBALL naming differences. New teams and leagues must not be created automatically by fixtures sync because duplicates would break runtime ML feature history.
+- API-FOOTBALL odds sync is implemented as a manual CLI script in `src/api/database/sync_api_football_odds.py`.
+- Odds sync writes only complete 1X2 and Over/Under 2.5 odds sets to the existing `odds` table, never fake values.
+- Result/statistics sync, scheduled automation, admin-triggered retraining, and monthly retraining are future work and are not automated now.
+- Recommended future sync frequency: upcoming fixtures daily; odds daily for matches in the next 1-7 days; results/statistics 1-2 times daily after result sync is implemented.
 
 ## Database Layer
 
