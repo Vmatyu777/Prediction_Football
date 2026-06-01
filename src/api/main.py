@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+from contextlib import asynccontextmanager
 from datetime import date
+import logging
 
 from fastapi import Depends, FastAPI, HTTPException, Query, status
 from sqlalchemy import text
@@ -46,10 +48,26 @@ from src.api.services.prediction_service import (
     get_stored_prediction,
     get_user_prediction_history,
 )
+from src.api.services.scheduler_service import get_scheduler_health, shutdown_scheduler, start_scheduler
 from src.api.database.models import User
 
 
-app = FastAPI(title=APP_TITLE, version=APP_VERSION)
+logger = logging.getLogger(__name__)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    try:
+        start_scheduler()
+    except Exception:
+        logger.exception("API-FOOTBALL scheduler failed to start")
+    try:
+        yield
+    finally:
+        shutdown_scheduler()
+
+
+app = FastAPI(title=APP_TITLE, version=APP_VERSION, lifespan=lifespan)
 
 
 @app.get("/health", response_model=HealthResponse)
@@ -62,6 +80,11 @@ def db_health() -> DatabaseHealthResponse:
     with SessionLocal() as db:
         db.execute(text("select 1"))
     return DatabaseHealthResponse(status="ok", database=engine.dialect.name)
+
+
+@app.get("/scheduler/health")
+def scheduler_health() -> dict:
+    return get_scheduler_health()
 
 
 @app.get("/models", response_model=list[ModelSummary])

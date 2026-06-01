@@ -151,9 +151,15 @@ Current design decision: exact score must not drive the final system because it 
 - Fixtures sync stores only scheduled, postponed, and cancelled API fixtures. Finished fixtures are skipped until result/statistics sync is implemented.
 - Team matching uses exact `(country, team name)` lookup plus in-code aliases for known API-FOOTBALL naming differences. New teams and leagues must not be created automatically by fixtures sync because duplicates would break runtime ML feature history.
 - API-FOOTBALL odds sync is implemented as a manual CLI script in `src/api/database/sync_api_football_odds.py`.
-- Odds sync writes only complete 1X2 and Over/Under 2.5 odds sets to the existing `odds` table, never fake values.
-- Result/statistics sync, scheduled automation, admin-triggered retraining, and monthly retraining are future work and are not automated now.
-- Recommended future sync frequency: upcoming fixtures daily; odds daily for matches in the next 1-7 days; results/statistics 1-2 times daily after result sync is implemented.
+- Odds sync writes only complete 1X2 and Over/Under 2.5 odds sets to the existing `odds` table under `Market Average`, averages complete bookmaker sets, never writes fake values, and must not create new bookmaker rows from API payloads.
+- API-FOOTBALL results/statistics sync is implemented as a manual CLI script in `src/api/database/sync_api_football_results.py`.
+- Results/statistics sync writes `match_results` only when score, total corner kicks, and total yellow cards are all available. It must not write fake zeros for missing statistics.
+- Daily API-FOOTBALL sync is registered inside the FastAPI backend through APScheduler in `src/api/services/scheduler_service.py`.
+- Scheduler defaults are configurable through `.env`: fixtures at `03:00` for `today -> today + 14 days`, odds at `06:00` for `today -> today + 7 days`, and results/statistics at `23:30` for `today - 2 days -> today`.
+- Scheduler windows are intentionally small to reduce API usage and respect free-tier limits. `API_FOOTBALL_MAX_SYNC_FIXTURES` defaults to `25`, so worst-case daily usage is about 80 requests.
+- `API_FOOTBALL_SEASON=2026` is the target app season, but API-FOOTBALL free plans may not expose that season yet; use an available season for local API checks if needed.
+- Scheduler health is exposed through `GET /scheduler/health`; existing `/health` and `/db/health` schemas must remain unchanged.
+- Admin panel, admin-triggered sync, sync logs, and monthly retraining automation are future work.
 
 ## Database Layer
 

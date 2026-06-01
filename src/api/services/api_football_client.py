@@ -49,9 +49,12 @@ class ApiFootballClient:
         to_date: str | None = None,
         status: str | None = None,
     ) -> dict[str, Any]:
+        request_season = season
+        if request_season is None and fixture_id is None and league is not None:
+            request_season = self.default_season
         params: dict[str, Any] = {
             "league": league,
-            "season": season if season is not None else self.default_season,
+            "season": request_season,
             "id": fixture_id,
             "next": next_matches,
             "date": date,

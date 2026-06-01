@@ -103,7 +103,14 @@ def resolve_league_ids(values: list[str] | None) -> list[int]:
 
 def print_summary(summary: dict[str, Any], *, dry_run: bool) -> None:
     print(f"API-FOOTBALL odds sync completed. dry_run={dry_run}")
-    for key in ["odds_received", "odds_inserted", "odds_updated", "odds_skipped"]:
+    for key in [
+        "odds_received",
+        "bookmakers_checked",
+        "bookmakers_with_complete_markets",
+        "odds_inserted",
+        "odds_updated",
+        "odds_skipped",
+    ]:
         print(f"{key}: {summary[key]}")
 
     print("warnings:")

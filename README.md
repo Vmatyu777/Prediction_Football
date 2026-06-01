@@ -449,7 +449,7 @@ Install Python runtime dependencies with:
 pip install -r requirements.txt
 ```
 
-The pinned backend/auth stack includes FastAPI, Uvicorn, Pydantic, SQLAlchemy, `psycopg[binary]`, `python-dotenv`, pandas, NumPy, scikit-learn, CatBoost, PyJWT, `passlib[bcrypt]`, and `bcrypt==4.0.1`.
+The pinned backend/auth stack includes FastAPI, Uvicorn, Pydantic, SQLAlchemy, `psycopg[binary]`, `python-dotenv`, `httpx`, `APScheduler`, pandas, NumPy, scikit-learn, CatBoost, PyJWT, `passlib[bcrypt]`, and `bcrypt==4.0.1`.
 
 PostgreSQL 16 through Docker Compose is the primary production-like database mode. Copy `.env.example` to `.env`, keep `.env` local and uncommitted, then start PostgreSQL:
 
@@ -475,13 +475,39 @@ API-FOOTBALL odds sync is implemented as a manual CLI script using the existing 
 python src/api/database/sync_api_football_odds.py --fixture-id 123456 --dry-run
 ```
 
-Odds sync stores only complete 1X2 and Over/Under 2.5 odds sets. It does not create fake odds and skips incomplete bookmaker payloads with warnings. Result/statistics update is not implemented yet. Scheduled automation is future work. Recommended future sync frequency is: upcoming fixtures daily; odds daily for matches in the next 1-7 days; results/statistics 1-2 times daily after result sync is implemented. Admin-triggered retraining or monthly retraining is also future work and is not automated by the current backend.
+Odds sync stores only complete 1X2 and Over/Under 2.5 odds sets. It saves API odds under the existing `Market Average` bookmaker and does not create new bookmaker rows from API payloads. If several bookmakers return complete markets, each odds field is stored as the arithmetic average across those complete bookmaker sets. It does not create fake odds and skips payloads with no complete bookmaker set.
+
+API-FOOTBALL results/statistics sync is implemented as a manual CLI script:
+
+```bash
+python src/api/database/sync_api_football_results.py --fixture-id 123456 --dry-run
+```
+
+Results/statistics sync creates or updates `match_results` only when the full score, total corner kicks, and total yellow cards are available. Finished fixtures with incomplete statistics are skipped without fake values.
+
+Daily API-FOOTBALL synchronization is also registered inside the FastAPI backend through APScheduler. The scheduler uses the same sync services as the CLI scripts and does not add database tables or retrain models. Default local schedule values are configurable through `.env`:
+
+```text
+API_FOOTBALL_SCHEDULER_ENABLED=true
+API_FOOTBALL_SCHEDULER_TIMEZONE=Europe/Moscow
+API_FOOTBALL_FIXTURES_SYNC_TIME=03:00
+API_FOOTBALL_ODDS_SYNC_TIME=06:00
+API_FOOTBALL_RESULTS_SYNC_TIME=23:30
+API_FOOTBALL_FIXTURES_DAYS_AHEAD=14
+API_FOOTBALL_ODDS_DAYS_AHEAD=7
+API_FOOTBALL_RESULTS_LOOKBACK_DAYS=2
+API_FOOTBALL_MAX_SYNC_FIXTURES=25
+```
+
+Default scheduled windows are intentionally small to respect free-tier API limits: fixtures run daily at `03:00` for `today -> today + 14 days`; odds run daily at `06:00` for up to 25 locally stored API fixtures in `today -> today + 7 days`; results/statistics run daily at `23:30` for up to 25 locally stored API fixtures in `today - 2 days -> today`. Worst-case daily usage is about 80 requests: 5 fixtures requests, 25 odds requests, and 50 result/statistics requests. `API_FOOTBALL_SEASON=2026` is the target app season, but API-FOOTBALL free plans may not expose that season yet; for local API checks use a season available on the configured plan if needed.
+
+Scheduler health is exposed separately at `GET /scheduler/health` so existing `/health` and `/db/health` response schemas remain unchanged. Admin panel, admin-triggered retraining, and monthly retraining automation are future work and are not automated by the current backend.
 
 The `/predict` endpoint remains available for sample/manual JSON input. The match-based `/predict/{match_id}` flow loads final models from `models/final_app/`, reads metadata from `configs/final_app_models.json`, generates runtime features from the configured SQL database, applies the priority-based reconciliation layer, and stores prediction outputs.
 
 Repeated `POST /predict/{match_id}` calls reuse an existing prediction when the same `match_id` and the same deployed outcome `model_id` are already stored. If the deployed outcome model changes after future retraining and receives a different `model_id`, the backend can create a new prediction for the same match. This avoids duplicate `prediction_characteristic_values` for repeated requests while preserving old predictions.
 
-Match rows include a `match_sources` reference (`historical`, `demo`, or `api`). Historical CSV-loaded matches use `historical`; development demo upcoming matches use `demo`; `api` is reserved for a future external loader. Match summary and detail responses expose the source so Android can show a user-facing source label.
+Match rows include a `match_sources` reference (`historical`, `demo`, or `api`). Historical CSV-loaded matches use `historical`; development demo upcoming matches use `demo`; API-FOOTBALL sync uses `api`. Match summary and detail responses expose the source so Android can show a user-facing source label.
 
 The match list separates recent matches from demonstration examples. `GET /matches/recent/sampled` returns the latest finished matches balanced across league-season pairs. `GET /matches/showcase` returns historical matches selected from `reports/tables/prediction_quality/prediction_quality_match_scores.csv` to demonstrate cases where the existing model predictions matched factual results well. Showcase examples do not replace model metrics and are not a general quality estimate.
 

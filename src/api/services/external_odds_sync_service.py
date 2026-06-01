@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
+from statistics import mean
 from typing import Any
 
 from sqlalchemy.orm import Session
@@ -18,12 +19,14 @@ DRAW_VALUES = {"Draw", "X"}
 AWAY_VALUES = {"Away", "2"}
 OVER25_VALUES = {"Over 2.5", "Over2.5", "Over 2,5"}
 UNDER25_VALUES = {"Under 2.5", "Under2.5", "Under 2,5"}
-MAX_BOOKMAKER_NAME_LENGTH = 20
+MARKET_AVERAGE_BOOKMAKER = "Market Average"
 
 
 @dataclass
 class OddsSyncSummary:
     odds_received: int = 0
+    bookmakers_checked: int = 0
+    bookmakers_with_complete_markets: int = 0
     odds_inserted: int = 0
     odds_updated: int = 0
     odds_skipped: int = 0
@@ -34,6 +37,8 @@ class OddsSyncSummary:
     def as_dict(self) -> dict[str, int | list[int] | list[str]]:
         return {
             "odds_received": self.odds_received,
+            "bookmakers_checked": self.bookmakers_checked,
+            "bookmakers_with_complete_markets": self.bookmakers_with_complete_markets,
             "odds_inserted": self.odds_inserted,
             "odds_updated": self.odds_updated,
             "odds_skipped": self.odds_skipped,
@@ -96,60 +101,49 @@ def sync_odds_item(
             summary.warnings.append(f"Fixture {fixture_id}: bookmakers payload is invalid")
             return
 
-        for bookmaker_payload in bookmakers:
-            sync_bookmaker_odds(
-                db,
-                match,
-                fixture_id,
-                bookmaker_payload,
-                summary,
-                dry_run=dry_run,
-                collected_at=collected_at,
-            )
+        summary.bookmakers_checked += len(bookmakers)
+        parsed = parse_average_complete_odds(bookmakers, summary)
+        if parsed is None:
+            summary.odds_skipped += 1
+            summary.warnings.append(f"Fixture {fixture_id}: complete 1X2 and Over/Under 2.5 odds were not found")
+            return
+
+        sync_market_average_odds(
+            db,
+            match,
+            fixture_id,
+            parsed,
+            summary,
+            dry_run=dry_run,
+            collected_at=collected_at,
+        )
     except (KeyError, TypeError, ValueError) as error:
         summary.odds_skipped += 1
         summary.errors.append(f"Odds item skipped: {error}")
 
 
-def sync_bookmaker_odds(
+def sync_market_average_odds(
     db: Session,
     match: Match,
     fixture_id: str,
-    bookmaker_payload: dict[str, Any],
+    parsed: dict[str, Decimal],
     summary: OddsSyncSummary,
     *,
     dry_run: bool,
     collected_at: datetime,
 ) -> None:
-    bookmaker_name = str(bookmaker_payload.get("name", "")).strip()
-    if not bookmaker_name:
+    bookmaker = db.query(Bookmaker).filter(Bookmaker.name == MARKET_AVERAGE_BOOKMAKER).first()
+    if bookmaker is None:
         summary.odds_skipped += 1
-        summary.warnings.append(f"Fixture {fixture_id}: bookmaker name is missing")
-        return
-    if len(bookmaker_name) > MAX_BOOKMAKER_NAME_LENGTH:
-        summary.odds_skipped += 1
-        summary.warnings.append(f"Fixture {fixture_id}: bookmaker name is too long: {bookmaker_name}")
+        summary.warnings.append(f"Fixture {fixture_id}: required bookmaker was not found: {MARKET_AVERAGE_BOOKMAKER}")
         return
 
-    parsed = parse_required_odds(bookmaker_payload)
-    if parsed is None:
-        summary.odds_skipped += 1
-        summary.warnings.append(f"Fixture {fixture_id}: complete 1X2 and Over/Under 2.5 odds were not found for {bookmaker_name}")
-        return
-
-    bookmaker = db.query(Bookmaker).filter(Bookmaker.name == bookmaker_name).first()
-    existing = None
-    if bookmaker is not None:
-        existing = db.query(Odds).filter(Odds.match_id == match.id, Odds.bookmaker_id == bookmaker.id).first()
+    existing = db.query(Odds).filter(Odds.match_id == match.id, Odds.bookmaker_id == bookmaker.id).first()
 
     if existing is None:
         summary.odds_inserted += 1
         if dry_run:
             return
-        if bookmaker is None:
-            bookmaker = Bookmaker(name=bookmaker_name)
-            db.add(bookmaker)
-            db.flush()
         odds = Odds(
             home_win_odds=parsed["home_win_odds"],
             draw_odds=parsed["draw_odds"],
@@ -177,6 +171,29 @@ def sync_bookmaker_odds(
     existing.under25_odds = parsed["under25_odds"]
     existing.collected_at = collected_at
     summary.odds_ids.append(existing.id)
+
+
+def parse_average_complete_odds(bookmakers: list[Any], summary: OddsSyncSummary) -> dict[str, Decimal] | None:
+    complete_sets = []
+    for bookmaker_payload in bookmakers:
+        if not isinstance(bookmaker_payload, dict):
+            continue
+        parsed = parse_required_odds(bookmaker_payload)
+        if parsed is not None:
+            complete_sets.append(parsed)
+
+    if not complete_sets:
+        return None
+
+    summary.bookmakers_with_complete_markets += len(complete_sets)
+    return {
+        key: average_decimal_odds([item[key] for item in complete_sets])
+        for key in ["home_win_odds", "draw_odds", "away_win_odds", "over25_odds", "under25_odds"]
+    }
+
+
+def average_decimal_odds(values: list[Decimal]) -> Decimal:
+    return Decimal(str(mean(values))).quantize(Decimal("0.01"))
 
 
 def parse_required_odds(bookmaker_payload: dict[str, Any]) -> dict[str, Decimal] | None:

@@ -46,6 +46,7 @@ This document gives a short engineering overview of the current project artifact
 - `src/api/database/migrate_external_sources.py` is an idempotent schema migration helper for the API-FOOTBALL external source table and nullable external identity fields on `matches`.
 - `src/api/database/sync_api_football.py` is the manual CLI entry point for API-FOOTBALL fixtures sync. It supports dry-run mode, mock fixture payloads, real API requests, and upsert by external fixture identity.
 - `src/api/database/sync_api_football_odds.py` is the manual CLI entry point for API-FOOTBALL odds sync. It supports dry-run mode, mock odds payloads, real API requests, and upsert into the existing `odds` table.
+- `src/api/database/sync_api_football_results.py` is the manual CLI entry point for API-FOOTBALL results/statistics sync. It supports dry-run mode, mock payloads, real API requests, and result upsert when full score plus statistics are available.
 - `src/api/database/seed_db.py` inserts minimal reference data for statuses, match sources, user roles, model types, metrics, prediction characteristics, and bookmakers.
 - `src/api/database/seed_final_models.py` inserts final deployed model metadata and main final test metrics into the configured SQL database.
 - `src/api/database/load_football_data.py` loads cleaned domain football data from `data/interim/matches_top5_2018_2025_clean.csv` into the configured SQL database.
@@ -56,7 +57,9 @@ This document gives a short engineering overview of the current project artifact
 - `src/api/services/match_service.py` contains SQLAlchemy query helpers for match listing, match details, upcoming matches, recent matches, sampled recent matches, and showcase examples.
 - `src/api/services/api_football_client.py` contains a small API-FOOTBALL HTTP client with fixture, statistics, and odds request methods. It does not write to the database.
 - `src/api/services/external_match_sync_service.py` contains the conservative API-FOOTBALL fixture matching and upsert logic. It uses exact team matching plus in-code aliases and does not create new teams or leagues automatically.
-- `src/api/services/external_odds_sync_service.py` contains API-FOOTBALL odds parsing and upsert logic for complete 1X2 plus Over/Under 2.5 bookmaker payloads.
+- `src/api/services/external_odds_sync_service.py` contains API-FOOTBALL odds parsing and upsert logic for complete 1X2 plus Over/Under 2.5 payloads. API odds are averaged across complete bookmaker sets and saved under the existing `Market Average` bookmaker; API bookmaker rows are not created.
+- `src/api/services/external_result_sync_service.py` contains API-FOOTBALL result and match-statistics parsing. It writes `match_results` only when score, total corners, and total yellow cards are all available.
+- `src/api/services/scheduler_service.py` registers daily APScheduler jobs inside the FastAPI backend for fixtures, odds, and results/statistics sync.
 
 ## Android App
 
@@ -236,12 +239,13 @@ python src/api/database/seed_demo_upcoming_matches.py
 
 The `.env` file is local and must not be committed. SQLite remains available as a fallback when `DATABASE_URL` is not set.
 
-API-FOOTBALL is prepared as the single external sports data provider. External API identity is stored through `external_sources` plus nullable `matches.external_source_id`, `matches.external_match_id`, and `matches.last_synced_at` fields. The unique API identity is `(external_source_id, external_match_id)`, while historical and demo matches can keep these fields as `NULL`. Manual fixtures sync is implemented with `python src/api/database/sync_api_football.py`; manual odds sync is implemented with `python src/api/database/sync_api_football_odds.py`. Result/statistics sync is not implemented yet. The fixtures sync uses conservative alias-based team matching and does not create new teams automatically. The odds sync writes only complete 1X2 and Over/Under 2.5 odds sets and never creates fake odds. Scheduled sync, admin sync endpoints, sync logs, and monthly retraining automation are not implemented yet.
+API-FOOTBALL is prepared as the single external sports data provider. External API identity is stored through `external_sources` plus nullable `matches.external_source_id`, `matches.external_match_id`, and `matches.last_synced_at` fields. The unique API identity is `(external_source_id, external_match_id)`, while historical and demo matches can keep these fields as `NULL`. Manual fixtures sync is implemented with `python src/api/database/sync_api_football.py`; manual odds sync is implemented with `python src/api/database/sync_api_football_odds.py`; manual results/statistics sync is implemented with `python src/api/database/sync_api_football_results.py`. The fixtures sync uses conservative alias-based team matching and does not create new teams automatically. The odds sync writes only complete 1X2 and Over/Under 2.5 odds sets under `Market Average`, averages complete bookmaker sets, does not create API bookmaker rows, and never creates fake odds. The results/statistics sync writes `match_results` only when score, total corners, and total yellow cards are all available. Daily scheduled sync is implemented inside the FastAPI backend through APScheduler: fixtures at `03:00` for `today -> today + 14 days`, odds at `06:00` for up to 25 fixtures in `today -> today + 7 days`, and results/statistics at `23:30` for up to 25 fixtures in `today - 2 days -> today` by default, all configurable through `.env`. These windows are intentionally small to reduce API usage and keep worst-case daily usage near 80 requests. `API_FOOTBALL_SEASON=2026` is the target app season, but API-FOOTBALL free plans may not expose that season yet; local API checks may need an available season. Scheduler health is available at `GET /scheduler/health`. Admin sync endpoints, sync logs, and monthly retraining automation are not implemented yet.
 
 Endpoints:
 
 - `GET /health` returns service status.
 - `GET /db/health` checks configured database connectivity and should report `database=postgresql` in PostgreSQL mode.
+- `GET /scheduler/health` returns scheduler enabled/running state and next run times without changing existing health schemas.
 - `GET /models` returns final model metadata for each configured task.
 - `POST /auth/register` creates a user with a bcrypt password hash.
 - `POST /auth/login` returns a JWT bearer token.
