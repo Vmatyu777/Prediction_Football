@@ -605,6 +605,34 @@ python src/api/database/load_elo_ratings.py
 python src/api/database/seed_demo_upcoming_matches.py
 ```
 
+Create a PostgreSQL backup:
+
+```bash
+python src/api/database/backup_postgres.py
+```
+
+Backups are stored under the ignored local `backups/` directory with names like:
+
+```text
+football_backup_YYYYMMDD_HHMMSS.sql
+```
+
+The backup script uses `pg_dump`. If PostgreSQL client tools are not installed on the host, it falls back to `docker compose exec -T postgres pg_dump`, so the Docker Compose `postgres` service must be running.
+
+Preview a restore command without changing the database:
+
+```bash
+python src/api/database/restore_postgres.py backups/football_backup_YYYYMMDD_HHMMSS.sql
+```
+
+Actually restore a selected backup only when intended:
+
+```bash
+python src/api/database/restore_postgres.py backups/football_backup_YYYYMMDD_HHMMSS.sql --execute
+```
+
+Restore uses `psql` for the plain SQL backup. It does not run automatically and should be used only after confirming the target PostgreSQL database.
+
 The loader uses:
 
 ```text

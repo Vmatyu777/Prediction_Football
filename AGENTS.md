@@ -179,6 +179,9 @@ Current design decision: exact score must not drive the final system because it 
 - Load cleaned domain football data with `python src/api/database/load_football_data.py`.
 - Load ELO history with `python src/api/database/load_elo_ratings.py`.
 - Seed demo upcoming matches with `python src/api/database/seed_demo_upcoming_matches.py`.
+- Create PostgreSQL backups with `python src/api/database/backup_postgres.py`; backups are stored under ignored local `backups/` using the `football_backup_YYYYMMDD_HHMMSS.sql` naming template.
+- Preview restore with `python src/api/database/restore_postgres.py backups/<file>.sql`; actual restore requires `--execute`.
+- Backup and restore use `pg_dump`/`psql`; when host PostgreSQL client tools are unavailable, scripts use the Docker Compose `postgres` service.
 - In PostgreSQL mode, `GET /db/health` must report `database=postgresql`.
 - The loader source is `data/interim/matches_top5_2018_2025_clean.csv`, not the feature matrix CSV files.
 - The ELO loader primary source is `data/raw/EloRatings.csv`; root CSV fallback is local compatibility only.

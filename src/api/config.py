@@ -19,6 +19,8 @@ FINAL_APP_MODELS_DIR = PROJECT_ROOT / "models" / "final_app"
 DATABASE_PATH = PROJECT_ROOT / "data" / "app" / "football.db"
 DEFAULT_DATABASE_URL = f"sqlite:///{DATABASE_PATH}"
 DATABASE_URL = os.getenv("DATABASE_URL", DEFAULT_DATABASE_URL)
+BACKUP_DIR = PROJECT_ROOT / os.getenv("BACKUP_DIR", "backups")
+BACKUP_FILE_TEMPLATE = os.getenv("BACKUP_FILE_TEMPLATE", "football_backup_%Y%m%d_%H%M%S.sql")
 
 APP_TITLE = "Prediction Football API"
 APP_VERSION = "0.1.0"

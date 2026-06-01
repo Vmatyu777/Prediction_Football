@@ -52,6 +52,8 @@ This document gives a short engineering overview of the current project artifact
 - `src/api/database/load_football_data.py` loads cleaned domain football data from `data/interim/matches_top5_2018_2025_clean.csv` into the configured SQL database.
 - `src/api/database/load_elo_ratings.py` loads ELO rating history from `data/raw/EloRatings.csv` for teams already present in the configured SQL database, with root CSV fallback for local compatibility.
 - `src/api/database/seed_demo_upcoming_matches.py` creates development demo upcoming matches as regular `matches` rows with `source=demo`, `Market Average` odds, and no match result.
+- `src/api/database/backup_postgres.py` creates ignored local PostgreSQL plain SQL backups under `backups/` with `pg_dump`.
+- `src/api/database/restore_postgres.py` previews or executes PostgreSQL restore from a selected plain SQL backup with `psql`; restore is dry-run by default unless `--execute` is passed.
 - `src/analysis/prediction_quality_analysis.py` computes historical prediction-quality reports without storing prediction rows in the application database.
 - `src/api/services/feature_service.py` builds runtime model feature vectors from SQL database data using training-compatible feature names, ordering, ELO logic, odds transforms, and rolling-history calculations.
 - `src/api/services/match_service.py` contains SQLAlchemy query helpers for match listing, match details, upcoming matches, recent matches, sampled recent matches, and showcase examples.
@@ -238,6 +240,16 @@ python src/api/database/seed_demo_upcoming_matches.py
 ```
 
 The `.env` file is local and must not be committed. SQLite remains available as a fallback when `DATABASE_URL` is not set.
+
+PostgreSQL backup and restore helpers are available:
+
+```bash
+python src/api/database/backup_postgres.py
+python src/api/database/restore_postgres.py backups/football_backup_YYYYMMDD_HHMMSS.sql
+python src/api/database/restore_postgres.py backups/football_backup_YYYYMMDD_HHMMSS.sql --execute
+```
+
+Backup files are written to ignored local `backups/`. The scripts use `pg_dump` and `psql`; if host PostgreSQL client tools are not available, they use the Docker Compose `postgres` service, so PostgreSQL must be running.
 
 API-FOOTBALL is prepared as the single external sports data provider. External API identity is stored through `external_sources` plus nullable `matches.external_source_id`, `matches.external_match_id`, and `matches.last_synced_at` fields. The unique API identity is `(external_source_id, external_match_id)`, while historical and demo matches can keep these fields as `NULL`. Manual fixtures sync is implemented with `python src/api/database/sync_api_football.py`; manual odds sync is implemented with `python src/api/database/sync_api_football_odds.py`; manual results/statistics sync is implemented with `python src/api/database/sync_api_football_results.py`. The fixtures sync uses conservative alias-based team matching and does not create new teams automatically. The odds sync writes only complete 1X2 and Over/Under 2.5 odds sets under `Market Average`, averages complete bookmaker sets, does not create API bookmaker rows, and never creates fake odds. The results/statistics sync writes `match_results` only when score, total corners, and total yellow cards are all available. Daily scheduled sync is implemented inside the FastAPI backend through APScheduler: fixtures at `03:00` for `today -> today + 14 days`, odds at `06:00` for up to 25 fixtures in `today -> today + 7 days`, and results/statistics at `23:30` for up to 25 fixtures in `today - 2 days -> today` by default, all configurable through `.env`. These windows are intentionally small to reduce API usage and keep worst-case daily usage near 80 requests. `API_FOOTBALL_SEASON=2026` is the target app season, but API-FOOTBALL free plans may not expose that season yet; local API checks may need an available season. Scheduler health is available at `GET /scheduler/health`. Admin sync endpoints, sync logs, and monthly retraining automation are not implemented yet.
 
