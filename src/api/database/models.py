@@ -3,7 +3,18 @@ from __future__ import annotations
 from datetime import date, datetime
 from decimal import Decimal
 
-from sqlalchemy import Boolean, CheckConstraint, Date, DateTime, ForeignKey, Integer, Numeric, SmallInteger, String
+from sqlalchemy import (
+    Boolean,
+    CheckConstraint,
+    Date,
+    DateTime,
+    ForeignKey,
+    Integer,
+    Numeric,
+    SmallInteger,
+    String,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.api.database.session import Base
@@ -91,8 +102,20 @@ class MatchSource(Base):
     matches: Mapped[list["Match"]] = relationship(back_populates="source")
 
 
+class ExternalSource(Base):
+    __tablename__ = "external_sources"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(String(50), nullable=False, unique=True)
+
+    matches: Mapped[list["Match"]] = relationship(back_populates="external_source")
+
+
 class Match(Base):
     __tablename__ = "matches"
+    __table_args__ = (
+        UniqueConstraint("external_source_id", "external_match_id", name="uq_matches_external_identity"),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     match_date: Mapped[datetime] = mapped_column(DateTime, nullable=False)
@@ -101,12 +124,16 @@ class Match(Base):
     away_team_id: Mapped[int] = mapped_column(ForeignKey("teams.id"), nullable=False)
     status_id: Mapped[int] = mapped_column(ForeignKey("match_statuses.id"), nullable=False)
     source_id: Mapped[int] = mapped_column(ForeignKey("match_sources.id"), nullable=False)
+    external_source_id: Mapped[int | None] = mapped_column(ForeignKey("external_sources.id"))
+    external_match_id: Mapped[str | None] = mapped_column(String(100))
+    last_synced_at: Mapped[datetime | None] = mapped_column(DateTime)
 
     season: Mapped["Season"] = relationship(back_populates="matches")
     home_team: Mapped["Team"] = relationship(back_populates="home_matches", foreign_keys=[home_team_id])
     away_team: Mapped["Team"] = relationship(back_populates="away_matches", foreign_keys=[away_team_id])
     status: Mapped["MatchStatus"] = relationship(back_populates="matches")
     source: Mapped["MatchSource"] = relationship(back_populates="matches")
+    external_source: Mapped["ExternalSource | None"] = relationship(back_populates="matches")
     result: Mapped["MatchResult | None"] = relationship(back_populates="match")
     odds: Mapped[list["Odds"]] = relationship(back_populates="match")
     predictions: Mapped[list["Prediction"]] = relationship(back_populates="match")

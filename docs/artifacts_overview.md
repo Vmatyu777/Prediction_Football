@@ -8,6 +8,7 @@ This document gives a short engineering overview of the current project artifact
 - `configs/final_app_models.json` stores machine-readable backend metadata for final model paths, feature-set names, thresholds, reconciliation priority order, and exact-score clipping range.
 - `src/api/` contains the FastAPI backend for the Android mobile application, including auth endpoints, match browsing, prediction, persisted prediction details, and user prediction history.
 - `src/api/database/` contains the SQLAlchemy physical database layer for backend persistence. PostgreSQL 16 through Docker Compose is the primary production-like mode; SQLite is retained as a local fallback when `DATABASE_URL` is not set.
+- API-FOOTBALL / API-SPORTS is the selected single external source for future fixtures, results, match statistics, and odds. Its API key is a local `.env` value and must not be committed.
 - `android_app/` contains the Android tablet MVP client. It is a Kotlin + Jetpack Compose thin client that calls FastAPI through Retrofit and does not run ML models, calculate ML features, or access any database directly.
 - `requirements.txt` pins the Python runtime dependencies used by the backend, model loading, and auth flow.
 
@@ -42,6 +43,7 @@ This document gives a short engineering overview of the current project artifact
 - `src/api/database/session.py` configures the SQLAlchemy engine, session factory, and declarative base from `DATABASE_URL`.
 - `src/api/database/models.py` stores SQLAlchemy ORM models for the physical database schema.
 - `src/api/database/init_db.py` creates all database tables for the configured SQL database.
+- `src/api/database/migrate_external_sources.py` is an idempotent schema migration helper for the API-FOOTBALL external source table and nullable external identity fields on `matches`.
 - `src/api/database/seed_db.py` inserts minimal reference data for statuses, match sources, user roles, model types, metrics, prediction characteristics, and bookmakers.
 - `src/api/database/seed_final_models.py` inserts final deployed model metadata and main final test metrics into the configured SQL database.
 - `src/api/database/load_football_data.py` loads cleaned domain football data from `data/interim/matches_top5_2018_2025_clean.csv` into the configured SQL database.
@@ -50,6 +52,7 @@ This document gives a short engineering overview of the current project artifact
 - `src/analysis/prediction_quality_analysis.py` computes historical prediction-quality reports without storing prediction rows in the application database.
 - `src/api/services/feature_service.py` builds runtime model feature vectors from SQL database data using training-compatible feature names, ordering, ELO logic, odds transforms, and rolling-history calculations.
 - `src/api/services/match_service.py` contains SQLAlchemy query helpers for match listing, match details, upcoming matches, recent matches, sampled recent matches, and showcase examples.
+- `src/api/services/api_football_client.py` contains a small API-FOOTBALL HTTP client with fixture, statistics, and odds request methods. It does not write to the database.
 
 ## Android App
 
@@ -228,6 +231,8 @@ python src/api/database/seed_demo_upcoming_matches.py
 ```
 
 The `.env` file is local and must not be committed. SQLite remains available as a fallback when `DATABASE_URL` is not set.
+
+API-FOOTBALL is prepared as the single external sports data provider. External API identity is stored through `external_sources` plus nullable `matches.external_source_id`, `matches.external_match_id`, and `matches.last_synced_at` fields. The unique API identity is `(external_source_id, external_match_id)`, while historical and demo matches can keep these fields as `NULL`. Scheduled sync, admin sync endpoints, sync logs, and monthly retraining automation are not implemented yet.
 
 Endpoints:
 

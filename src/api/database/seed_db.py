@@ -13,6 +13,7 @@ if str(PROJECT_ROOT) not in sys.path:
 from src.api.database.init_db import init_db
 from src.api.database.models import (
     Bookmaker,
+    ExternalSource,
     MatchSource,
     MatchStatus,
     Metric,
@@ -25,6 +26,7 @@ from src.api.database.session import SessionLocal
 
 MATCH_STATUSES = ["scheduled", "finished", "postponed", "cancelled"]
 MATCH_SOURCES = ["historical", "demo", "api"]
+EXTERNAL_SOURCES = ["API-FOOTBALL"]
 USER_ROLES = ["user", "admin"]
 MODEL_TYPES = ["LogisticRegression", "CatBoostClassifier", "Ridge"]
 METRICS = [
@@ -62,6 +64,7 @@ def seed_db() -> dict[str, int]:
     inserted_counts = {
         "match_statuses": 0,
         "match_sources": 0,
+        "external_sources": 0,
         "user_roles": 0,
         "model_types": 0,
         "metrics": 0,
@@ -74,6 +77,8 @@ def seed_db() -> dict[str, int]:
             inserted_counts["match_statuses"] += int(get_or_create_by_name(db, MatchStatus, name))
         for name in MATCH_SOURCES:
             inserted_counts["match_sources"] += int(get_or_create_by_name(db, MatchSource, name))
+        for name in EXTERNAL_SOURCES:
+            inserted_counts["external_sources"] += int(get_or_create_by_name(db, ExternalSource, name))
         for name in USER_ROLES:
             inserted_counts["user_roles"] += int(get_or_create_by_name(db, UserRole, name))
         for name in MODEL_TYPES:

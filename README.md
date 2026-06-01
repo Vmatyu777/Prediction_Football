@@ -459,6 +459,10 @@ docker compose up -d postgres
 
 SQLite is preserved as a legacy/local fallback when `DATABASE_URL` is not set. In the PostgreSQL mode, `GET /db/health` should return `database=postgresql`.
 
+API-FOOTBALL / API-SPORTS is the selected single external source for future fixtures, match results, match statistics, and odds. The API key must be stored only in local `.env` as `API_FOOTBALL_API_KEY`; `.env.example` contains only an empty template value. External API identity is stored through `external_sources` and nullable external fields on `matches` so API-loaded matches can be upserted without duplicates while historical and demo matches can keep `NULL` external ids.
+
+Scheduled external sync is not implemented yet. Admin-triggered retraining or monthly retraining is also future work and is not automated by the current backend.
+
 The `/predict` endpoint remains available for sample/manual JSON input. The match-based `/predict/{match_id}` flow loads final models from `models/final_app/`, reads metadata from `configs/final_app_models.json`, generates runtime features from the configured SQL database, applies the priority-based reconciliation layer, and stores prediction outputs.
 
 Repeated `POST /predict/{match_id}` calls reuse an existing prediction when the same `match_id` and the same deployed outcome `model_id` are already stored. If the deployed outcome model changes after future retraining and receives a different `model_id`, the backend can create a new prediction for the same match. This avoids duplicate `prediction_characteristic_values` for repeated requests while preserving old predictions.
@@ -570,6 +574,17 @@ data/interim/matches_top5_2018_2025_clean.csv
 The ELO loader uses `data/raw/EloRatings.csv` as its primary source and keeps the root `EloRatings.csv` path only as a local fallback.
 
 It fills countries, leagues, seasons, teams, matches, match results, bookmakers, and odds. Odds rows store 1X2 market odds and Over/Under 2.5 goal-total odds so runtime features can match the deployed training feature sets. The configured SQL database also stores ELO rating history and lightweight metadata for the final deployed ML models and their main test metrics.
+
+External source identity for API-loaded matches is prepared through:
+
+```text
+external_sources
+matches.external_source_id
+matches.external_match_id
+matches.last_synced_at
+```
+
+The unique external identity is `(external_source_id, external_match_id)`. `external_match_id` is not globally unique by itself, and `NULL` remains allowed for historical and demo matches.
 
 `POST /predict/{match_id}` builds model feature vectors from SQL match, odds, ELO, and rolling match history, calls the existing final models, applies the reconciliation layer, stores the prediction, and returns the final user-facing JSON. Repeated calls for the same match and deployed outcome model reuse the stored prediction instead of creating duplicates.
 

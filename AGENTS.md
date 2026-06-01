@@ -145,6 +145,9 @@ Current design decision: exact score must not drive the final system because it 
 - SQLite remains a legacy/local fallback when `DATABASE_URL` is not set.
 - Backend/auth Python dependencies are tracked in `requirements.txt`.
 - User credential validation rules are: username must contain only Latin letters, digits, `_`, and `-`; email must be ASCII email format; password must be at least 8 printable ASCII characters with at least one Latin letter and one digit.
+- API-FOOTBALL / API-SPORTS is the selected single external sports data source for future fixtures, match results, match statistics, and odds.
+- API-FOOTBALL credentials must be stored only in local `.env` as `API_FOOTBALL_API_KEY`; `.env.example` must contain only an empty template value.
+- Scheduled external sync, admin-triggered retraining, and monthly retraining are future work and are not automated now.
 
 ## Database Layer
 
@@ -169,6 +172,8 @@ Current design decision: exact score must not drive the final system because it 
 - The ELO loader primary source is `data/raw/EloRatings.csv`; root CSV fallback is local compatibility only.
 - The loader fills countries, leagues, seasons, teams, matches, match results, bookmakers, and odds. Odds rows include 1X2 odds plus Over/Under 2.5 goal-total odds for runtime feature parity.
 - Match rows reference `match_sources`: CSV-loaded rows use `historical`, development demo upcoming rows use `demo`, and `api` is reserved for a future external loader.
+- External API identity is represented by `external_sources` and nullable `matches.external_source_id`, `matches.external_match_id`, and `matches.last_synced_at` fields so API-loaded matches can be upserted without duplicates.
+- `external_match_id` is not globally unique by itself; the unique identity is `(external_source_id, external_match_id)`.
 - The configured SQL database stores lightweight metadata for final deployed ML models in `models` and `model_metrics`.
 - `POST /predict/{match_id}` stores rows in `predictions` and `prediction_characteristic_values`.
 - Authenticated `POST /predict/{match_id}` also stores user action rows in `user_query_history`.
