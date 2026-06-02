@@ -63,7 +63,7 @@ Recommended responsibilities:
 - `network`: Retrofit client, service interface, auth token store, auth repository, and prediction repository.
 - `ui/DisplayMappings.kt`: maps technical backend values to Russian user-facing labels.
 - `navigation`: Compose navigation graph and route definitions.
-- `ui/components`: shared cards, loading, error, and action components.
+- `ui/components`: shared dark cards, loading skeletons, floating notifications, status badges, probability bars, and action components.
 - `ui/screens`: screen-level composables for match list, match details, and prediction result.
 - `ui/theme`: Material3 color, typography, and tablet layout tokens.
 - `viewmodel`: simple MVP ViewModels and UI state.
@@ -80,11 +80,11 @@ MatchList -> Profile -> History
 Screen goals:
 
 - Splash: short startup screen that validates a stored token with `GET /auth/me`.
-- Login/Register: FastAPI auth flow with validation and temporary Toast error messages.
-- Match List: Recent/Upcoming/Examples switch plus league and season filters with `All`.
-- Match Details: teams, league, date, status, result if available, latest odds.
-- Prediction Result: final reconciled prediction from `POST /predict/{match_id}`.
-- Profile: current user details and logout.
+- Login/Register: FastAPI auth flow with validation, floating in-app error notifications, and show/hide password controls.
+- Match List: Recent/Upcoming/Best Predictions switch plus league and season filters with `All`; the screen opens on Upcoming, caches loaded tabs in `MatchListViewModel`, and provides a manual `Обновить матчи` action.
+- Match Details: teams, league, date, status, result if available, latest odds, and compact tablet layout.
+- Prediction Result: final reconciled prediction from `POST /predict/{match_id}` in a dark analytics dashboard style.
+- Profile: current user details in a dashboard-style card, prediction history link, and logout.
 - History: latest visible row per `prediction_id`, prediction characteristics, and comparison with factual result when the match is finished.
 
 For tablet layout, prefer a list-detail layout on wide screens:
@@ -97,11 +97,14 @@ For tablet layout, prefer a list-detail layout on wide screens:
 
 The Android app remains tablet-first. Basic phone support has been improved without adding a separate adaptive architecture:
 
+- The completed UI redesign uses a dark football analytics theme with near-black backgrounds, dark cards, and lime accents for CTAs, statuses, prediction highlights, and progress bars.
 - Login and Register preserve user input across configuration changes with `rememberSaveable`.
-- Login and Register are vertically scrollable and use IME padding so the keyboard does not hide the form controls.
-- Match Details, Prediction Result, and Profile are vertically scrollable to avoid clipped content on phones and landscape-sized heights.
+- Login and Register are vertically scrollable, use IME padding so the keyboard does not hide form controls, and show floating in-app notifications instead of system Toasts.
+- Match Details, Prediction Result, and Profile are vertically scrollable where needed to avoid clipped content on phones and landscape-sized heights.
+- Match Details has a more compact tablet layout; Prediction Result and History use dark sports analytics cards; Profile uses a centered dashboard-style user card.
 - Prediction Result uses one column for prediction metric cards on narrow screens and keeps two columns on wider tablet screens.
 - Match List tabs and filters are horizontally scrollable on narrow screens.
+- Actual upcoming matches and seeded demo matches are visually separated. Demo matches use a compact `Демо` badge.
 
 Full adaptive behavior is not implemented yet. The app does not use `WindowSizeClass`, tablet master-detail navigation, or landscape-specific layouts. These remain post-MVP improvements.
 
@@ -229,10 +232,14 @@ For a physical tablet, use the laptop LAN IP and rebuild with:
 Not included in the initial mobile layer:
 
 - advanced authentication;
+- email verification;
+- password reset;
 - Room database;
-- local caching;
-- notifications;
+- persistent local caching;
+- push notifications;
 - background sync;
+- team/league logos;
+- standings, H2H, calendar, and news screens;
 - local ML inference;
 - direct SQLite access.
 

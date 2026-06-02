@@ -207,12 +207,15 @@ Current design decision: exact score must not drive the final system because it 
 - The Android app is a thin Kotlin + Jetpack Compose client over FastAPI.
 - Android must not calculate ML features, access PostgreSQL, SQLite, or any backend database directly, run models locally, or implement reconciliation locally.
 - Implemented Android screens: splash, login, registration, match list, match details, prediction result, profile, and prediction history.
+- Android UI redesign is completed for the MVP: the app uses a dark football analytics theme with near-black backgrounds, dark cards, and lime accents for CTAs, statuses, prediction highlights, and progress bars.
 - Android registration/login uses FastAPI auth endpoints and stores JWT access tokens in `SharedPreferences`.
+- Login and Register use floating in-app notifications for form/auth errors and include show/hide password controls.
 - Android adds `Authorization: Bearer <token>` through the Retrofit/OkHttp API layer and clears the token on `401`/`403`.
 - Splash validates a stored token through `GET /auth/me`; valid tokens continue to the match list, missing or invalid tokens go to login.
-- Profile shows the authenticated user and links to prediction history; logout clears the token and returns to login.
+- Profile shows the authenticated user in a dashboard-style card and links to prediction history; logout clears the token and returns to login.
 - Prediction history is sorted by `query_date` descending and then deduplicated by `prediction_id` for display.
-- Match list supports Recent, Upcoming, and Examples tabs plus client-side filters by league and season with an `All` option.
+- Match list supports Recent, Upcoming, and Examples tabs plus client-side filters by league and season with an `All` option. It opens on Upcoming by default, caches loaded tab data in `MatchListViewModel`, and exposes a manual `Обновить матчи` refresh action.
+- Upcoming actual matches and seeded demo matches are visually separated in Android; demo matches keep a compact `Демо` badge.
 - Android UI maps technical backend values to Russian user-facing labels through display mapping helpers.
 - Android displays backend match sources through user-facing labels: `historical` is hidden, `demo` is shown as a demo match, and `api` is shown as an API match.
 - Android prediction results display outcome labels with full user-facing names, not short betting notation.
@@ -220,10 +223,12 @@ Current design decision: exact score must not drive the final system because it 
 - Backend `prediction.created_at` is stored as UTC; Android displays it in the local timezone of the emulator/tablet.
 - The Android UI remains tablet-first, with basic phone support improved for the MVP.
 - Login and Register preserve input across configuration changes, are vertically scrollable, and use keyboard-safe IME padding.
-- Match Details, Prediction Result, and Profile are vertically scrollable.
+- Match Details uses a compact tablet layout; Prediction Result uses a dark analytics dashboard layout; History uses readable market cards with Russian statuses.
+- Match Details, Prediction Result, and Profile are vertically scrollable where needed.
 - Prediction Result uses one column on narrow screens and two columns on wider tablet screens.
 - Match List tabs and filters are horizontally scrollable on narrow screens.
 - Full `WindowSizeClass` handling, tablet master-detail navigation, and landscape-specific layouts are not implemented yet.
+- Email verification, password reset, push notifications, team/league logos, standings, H2H, calendar, and news screens are not implemented.
 - Android Emulator backend URL: `http://10.0.2.2:8000/`.
 - Physical tablet backend URL: `http://<LAN_IP>:8000/`.
 - Android debug builds use `BuildConfig.API_BASE_URL`; override it with `-PapiBaseUrl=http://<LAN_IP>:8000/` for a physical tablet.

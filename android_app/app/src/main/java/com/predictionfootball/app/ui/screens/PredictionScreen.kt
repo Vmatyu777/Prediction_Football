@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -29,9 +28,12 @@ import com.predictionfootball.app.ui.displayProbabilityLabel
 import com.predictionfootball.app.ui.formatBackendUtcDateTime
 import com.predictionfootball.app.ui.components.ErrorContent
 import com.predictionfootball.app.ui.components.InfoCard
-import com.predictionfootball.app.ui.components.KeyValueRow
 import com.predictionfootball.app.ui.components.LoadingContent
+import com.predictionfootball.app.ui.components.ProbabilityBar
 import com.predictionfootball.app.ui.components.ScreenScaffold
+import com.predictionfootball.app.ui.components.SecondaryActionButton
+import com.predictionfootball.app.ui.components.SectionTitle
+import com.predictionfootball.app.ui.components.StatusBadge
 import com.predictionfootball.app.ui.theme.PredictionFootballTheme
 import com.predictionfootball.app.viewmodel.PredictionViewModel
 import com.predictionfootball.app.viewmodel.UiState
@@ -58,12 +60,10 @@ fun PredictionScreen(
 ) {
     ScreenScaffold(
         title = stringResource(R.string.prediction_result),
-        subtitle = stringResource(R.string.prediction_result_subtitle),
+        subtitle = "Аналитическая сводка по финальному прогнозу",
         modifier = Modifier.verticalScroll(rememberScrollState()),
         actions = {
-            OutlinedButton(onClick = onBack) {
-                Text(stringResource(R.string.back))
-            }
+            SecondaryActionButton(text = stringResource(R.string.back), onClick = onBack)
         },
     ) {
         when (state) {
@@ -77,25 +77,65 @@ fun PredictionScreen(
 @Composable
 private fun PredictionContent(prediction: PredictionDto) {
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        InfoCard(modifier = Modifier.fillMaxWidth()) {
-            Text(
-                text = stringResource(R.string.main_outcome),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-            )
-            Spacer(modifier = Modifier.height(12.dp))
-            KeyValueRow("Прогноз", displayOutcomeLong(prediction.outcome))
-            ProbabilityRow(prediction.outcomeProbabilities)
-        }
-
+        OutcomeDashboardCard(prediction)
         PredictionMetricCards(prediction)
+        ExactScoreCard(prediction)
+    }
+}
 
-        InfoCard(modifier = Modifier.fillMaxWidth()) {
-            KeyValueRow(stringResource(R.string.exact_score), prediction.exactScore)
-            Spacer(modifier = Modifier.height(8.dp))
+@Composable
+private fun OutcomeDashboardCard(prediction: PredictionDto) {
+    InfoCard(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+        ) {
+            SectionTitle(stringResource(R.string.main_outcome), modifier = Modifier.weight(1f))
+            StatusBadge("Финальный прогноз")
+        }
+        Spacer(modifier = Modifier.height(18.dp))
+        Text(
+            text = displayOutcomeLong(prediction.outcome),
+            style = MaterialTheme.typography.displaySmall,
+            color = MaterialTheme.colorScheme.primary,
+            fontWeight = FontWeight.Black,
+        )
+        Text(
+            text = "Приоритетный прогноз системы",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(modifier = Modifier.height(18.dp))
+        ProbabilityBars(prediction.outcomeProbabilities)
+    }
+}
+
+@Composable
+private fun ExactScoreCard(prediction: PredictionDto) {
+    InfoCard(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+        ) {
+            Column {
+                Text(
+                    text = stringResource(R.string.exact_score),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontWeight = FontWeight.Bold,
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    text = prediction.exactScore,
+                    style = MaterialTheme.typography.displaySmall,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontWeight = FontWeight.Black,
+                )
+            }
             Text(
                 text = "${stringResource(R.string.created_at)}: ${formatBackendUtcDateTime(prediction.createdAt)}",
-                modifier = Modifier.fillMaxWidth(),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.End,
@@ -179,16 +219,39 @@ private fun PredictionMetricCard(
     modifier: Modifier = Modifier,
 ) {
     InfoCard(modifier = modifier) {
-        KeyValueRow(label, value)
-        ProbabilityRow(probabilities)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    text = value,
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontWeight = FontWeight.Black,
+                )
+            }
+        }
+        Spacer(modifier = Modifier.height(16.dp))
+        ProbabilityBars(probabilities)
     }
 }
 
 @Composable
-private fun ProbabilityRow(probabilities: Map<String, Double>) {
-    Spacer(modifier = Modifier.height(8.dp))
-    normalizedPercentages(probabilities).forEach { (label, percent) ->
-        KeyValueRow(label = displayProbabilityLabel(label), value = "$percent%")
+private fun ProbabilityBars(probabilities: Map<String, Double>) {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        normalizedPercentages(probabilities).forEach { (label, percent) ->
+            ProbabilityBar(label = displayProbabilityLabel(label), percent = percent)
+        }
     }
 }
 
@@ -197,7 +260,9 @@ internal fun normalizedPercentages(probabilities: Map<String, Double>): List<Pai
         return emptyList()
     }
 
-    val ordered = probabilities.entries.sortedBy { it.key }
+    val ordered = probabilities.entries.sortedWith(
+        compareBy<Map.Entry<String, Double>> { probabilityOrder(it.key) }.thenBy { it.key },
+    )
     val rawPercentages = ordered.map { (_, value) -> value.coerceAtLeast(0.0) * 100.0 }
     val floored = rawPercentages.map { it.toInt() }.toMutableList()
     val difference = 100 - floored.sum()
@@ -221,6 +286,15 @@ internal fun normalizedPercentages(probabilities: Map<String, Double>): List<Pai
     }
 
     return ordered.mapIndexed { index, entry -> entry.key to floored[index] }
+}
+
+private fun probabilityOrder(label: String): Int = when (label.trim().uppercase()) {
+    "H" -> 0
+    "D" -> 1
+    "A" -> 2
+    "YES" -> 0
+    "NO" -> 1
+    else -> 10
 }
 
 @Preview(showBackground = true, widthDp = 900)

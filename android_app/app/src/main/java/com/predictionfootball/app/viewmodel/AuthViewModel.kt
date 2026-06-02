@@ -21,8 +21,8 @@ private const val MAX_EMAIL_LENGTH = 100
 private const val MAX_PASSWORD_LENGTH = 128
 private const val LOGIN_RULE_MESSAGE = "Логин может содержать только латинские буквы, цифры, _ и -"
 private const val LOGIN_LENGTH_MESSAGE = "Логин должен быть не длиннее 50 символов"
-private const val EMAIL_RULE_MESSAGE = "Введите корректный email"
-private const val EMAIL_LENGTH_MESSAGE = "Email должен содержать от 5 до 100 символов"
+private const val EMAIL_RULE_MESSAGE = "Введите корректную эл. почту"
+private const val EMAIL_LENGTH_MESSAGE = "Эл. почта должна содержать от 5 до 100 символов"
 private const val PASSWORD_RULE_MESSAGE = "Пароль должен содержать минимум 8 символов, латинскую букву и цифру"
 private const val PASSWORD_LENGTH_MESSAGE = "Пароль должен быть не длиннее 128 символов"
 
@@ -186,7 +186,7 @@ class AuthViewModel : ViewModel() {
             username.isBlank() -> "Введите логин"
             username.trim().length > MAX_USERNAME_LENGTH -> LOGIN_LENGTH_MESSAGE
             !username.trim().matches(Regex("^[A-Za-z0-9_-]+$")) -> LOGIN_RULE_MESSAGE
-            normalizedEmail.isBlank() -> "Введите email"
+            normalizedEmail.isBlank() -> "Введите эл. почту"
             normalizedEmail.length !in MIN_EMAIL_LENGTH..MAX_EMAIL_LENGTH -> EMAIL_LENGTH_MESSAGE
             !normalizedEmail.matches(Regex("^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$")) -> {
                 EMAIL_RULE_MESSAGE
@@ -208,7 +208,7 @@ class AuthViewModel : ViewModel() {
         val body = response()?.errorBody()?.string().orEmpty().lowercase(Locale.ROOT)
         return when {
             code() == 409 && "username already exists" in body -> "Этот логин уже занят"
-            code() == 409 && "email already exists" in body -> "Этот email уже зарегистрирован"
+            code() == 409 && "email already exists" in body -> "Эта эл. почта уже зарегистрирована"
             "username" in body && "at most 50" in body -> LOGIN_LENGTH_MESSAGE
             "email" in body && ("at most 100" in body || "at least 5" in body) -> EMAIL_LENGTH_MESSAGE
             "password" in body && "at most 128" in body -> PASSWORD_LENGTH_MESSAGE

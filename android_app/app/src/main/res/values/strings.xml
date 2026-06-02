@@ -1,10 +1,10 @@
 <resources>
-    <string name="app_name">Prediction Football</string>
+    <string name="app_name">Футбольные прогнозы</string>
     <string name="football_matches">Футбольные матчи</string>
     <string name="match_list_subtitle">Список матчей</string>
     <string name="recent_matches">Последние</string>
     <string name="upcoming_matches">Будущие</string>
-    <string name="showcase_matches">Примеры</string>
+    <string name="showcase_matches">Лучшие прогнозы</string>
     <string name="loading_matches">Загрузка матчей</string>
     <string name="no_matches">Матчи не найдены</string>
     <string name="no_upcoming_matches">Будущие матчи пока отсутствуют</string>

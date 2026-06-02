@@ -1,5 +1,6 @@
 package com.predictionfootball.app.ui.screens
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -14,11 +15,18 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.horizontalScroll
-import androidx.compose.material3.FilterChip
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -26,6 +34,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -40,13 +49,17 @@ import com.predictionfootball.app.ui.displayMatchStatus
 import com.predictionfootball.app.ui.displayMatchSource
 import com.predictionfootball.app.ui.components.ErrorContent
 import com.predictionfootball.app.ui.components.InfoCard
-import com.predictionfootball.app.ui.components.KeyValueRow
 import com.predictionfootball.app.ui.components.LoadingContent
 import com.predictionfootball.app.ui.components.ScreenScaffold
+import com.predictionfootball.app.ui.components.SecondaryActionButton
+import com.predictionfootball.app.ui.components.SectionTitle
+import com.predictionfootball.app.ui.components.StatusBadge
+import com.predictionfootball.app.ui.components.TeamMark
 import com.predictionfootball.app.ui.theme.PredictionFootballTheme
 import com.predictionfootball.app.viewmodel.MatchListMode
 import com.predictionfootball.app.viewmodel.MatchListViewModel
 import com.predictionfootball.app.viewmodel.UiState
+import kotlinx.coroutines.launch
 
 @Composable
 fun MatchListRoute(
@@ -65,12 +78,13 @@ fun MatchListRoute(
         selectedLeague = selectedLeague,
         selectedSeason = selectedSeason,
         onModeChange = viewModel::loadMatches,
-        onLeagueChange = viewModel::selectLeague,
-        onSeasonChange = viewModel::selectSeason,
-        onRetry = { viewModel.loadMatches() },
-        onMatchClick = onMatchClick,
-        onProfileClick = onProfileClick,
-    )
+    onLeagueChange = viewModel::selectLeague,
+    onSeasonChange = viewModel::selectSeason,
+    onRetry = { viewModel.loadMatches() },
+    onRefresh = viewModel::refreshCurrentMode,
+    onMatchClick = onMatchClick,
+    onProfileClick = onProfileClick,
+)
 }
 
 @Composable
@@ -83,10 +97,12 @@ fun MatchListScreen(
     onLeagueChange: (String?) -> Unit,
     onSeasonChange: (String?) -> Unit,
     onRetry: () -> Unit,
+    onRefresh: () -> Unit,
     onMatchClick: (Long) -> Unit,
     onProfileClick: () -> Unit,
 ) {
     val listState = rememberLazyListState()
+    val coroutineScope = rememberCoroutineScope()
 
     LaunchedEffect(selectedMode, selectedLeague, selectedSeason) {
         listState.scrollToItem(0)
@@ -94,13 +110,19 @@ fun MatchListScreen(
 
     ScreenScaffold(
         title = stringResource(R.string.football_matches),
-        subtitle = stringResource(R.string.match_list_subtitle),
+        subtitle = "Матчи, статусы и быстрый доступ к прогнозам",
         actions = {
-            OutlinedButton(onClick = onProfileClick) {
-                Text("Профиль")
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                SecondaryActionButton(text = "Обновить матчи", onClick = onRefresh)
+                SecondaryActionButton(text = "Профиль", onClick = onProfileClick)
             }
         },
     ) {
+        SectionTitle(
+            title = "Матч-центр",
+            trailing = selectedMode.titleText(),
+        )
+        Spacer(modifier = Modifier.height(14.dp))
         Row(
             modifier = Modifier.horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -108,8 +130,27 @@ fun MatchListScreen(
             MatchListMode.entries.forEach { mode ->
                 FilterChip(
                     selected = selectedMode == mode,
-                    onClick = { onModeChange(mode) },
+                    onClick = {
+                        if (selectedMode == mode) {
+                            coroutineScope.launch { listState.animateScrollToItem(0) }
+                        } else {
+                            onModeChange(mode)
+                        }
+                    },
                     label = { Text(mode.titleText()) },
+                    shape = RoundedCornerShape(999.dp),
+                    border = FilterChipDefaults.filterChipBorder(
+                        enabled = true,
+                        selected = selectedMode == mode,
+                        borderColor = MaterialTheme.colorScheme.outline,
+                        selectedBorderColor = MaterialTheme.colorScheme.primary,
+                    ),
+                    colors = FilterChipDefaults.filterChipColors(
+                        containerColor = MaterialTheme.colorScheme.surface,
+                        labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        selectedContainerColor = MaterialTheme.colorScheme.primary,
+                        selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+                    ),
                 )
             }
         }
@@ -124,6 +165,16 @@ fun MatchListScreen(
             )
         }
         Spacer(modifier = Modifier.height(16.dp))
+        if (selectedMode == MatchListMode.Showcase) {
+            InfoCard(modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    text = "Примеры успешных прогнозов системы на исторических матчах.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+        }
 
         when (state) {
             UiState.Loading -> LoadingContent(stringResource(R.string.loading_matches))
@@ -173,6 +224,13 @@ private fun FilterMenu(
     onValueChange: (String?) -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }
+    val dropdownScrollState = rememberScrollState()
+
+    LaunchedEffect(expanded) {
+        if (expanded) {
+            dropdownScrollState.scrollTo(0)
+        }
+    }
 
     Column {
         Text(
@@ -180,25 +238,61 @@ private fun FilterMenu(
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        OutlinedButton(onClick = { expanded = true }) {
-            Text(selectedValue ?: "Все")
-        }
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            DropdownMenuItem(
-                text = { Text("Все") },
-                onClick = {
-                    onValueChange(null)
-                    expanded = false
-                },
-            )
-            options.forEach { option ->
-                DropdownMenuItem(
-                    text = { Text(option) },
-                    onClick = {
-                        onValueChange(option)
-                        expanded = false
-                    },
+        Box {
+            androidx.compose.material3.OutlinedButton(
+                onClick = { expanded = true },
+                modifier = Modifier
+                    .height(44.dp)
+                    .width(172.dp),
+                shape = RoundedCornerShape(14.dp),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+                colors = ButtonDefaults.outlinedButtonColors(
+                    contentColor = MaterialTheme.colorScheme.onSurface,
+                ),
+            ) {
+                Text(
+                    text = selectedValue ?: "Все",
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
+            }
+            DropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false },
+                modifier = Modifier
+                    .width(172.dp)
+                    .heightIn(max = 300.dp),
+                containerColor = MaterialTheme.colorScheme.surface,
+                tonalElevation = 0.dp,
+            ) {
+                Column(
+                    modifier = Modifier
+                        .heightIn(max = 300.dp)
+                        .verticalScroll(dropdownScrollState),
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("Все") },
+                        onClick = {
+                            onValueChange(null)
+                            expanded = false
+                        },
+                    )
+                    options.forEach { option ->
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    text = option,
+                                    maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        },
+                        onClick = {
+                            onValueChange(option)
+                                expanded = false
+                            },
+                        )
+                    }
+                }
             }
         }
     }
@@ -236,14 +330,54 @@ private fun MatchList(
         state = listState,
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        items(matches, key = { it.id }) { match ->
-            MatchCard(match = match, onClick = { onMatchClick(match.id) })
+        val demoMatches = matches.filter { it.source.equals("demo", ignoreCase = true) }
+        val regularMatches = matches.filterNot { it.source.equals("demo", ignoreCase = true) }
+
+        if (regularMatches.isNotEmpty()) {
+            if (selectedMode == MatchListMode.Upcoming) {
+                item(key = "regular-header") {
+                    Text(
+                        text = "Актуальные матчи",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Bold,
+                    )
+                }
+            }
+            items(regularMatches, key = { it.id }) { match ->
+                MatchCard(match = match, onClick = { onMatchClick(match.id) })
+            }
+        }
+
+        if (demoMatches.isNotEmpty()) {
+            if (selectedMode == MatchListMode.Upcoming && regularMatches.isEmpty()) {
+                item(key = "demo-explanation") {
+                    InfoCard(modifier = Modifier.fillMaxWidth()) {
+                        Text(
+                            text = "Актуальных матчей пока нет. Ниже показаны демонстрационные матчи для проверки работы прогноза.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
+            item(key = "demo-header") {
+                Text(
+                    text = "Демонстрационные матчи",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Bold,
+                )
+            }
+            items(demoMatches, key = { it.id }) { match ->
+                MatchCard(match = match, onClick = { onMatchClick(match.id) }, isDemo = true)
+            }
         }
     }
 }
 
 @Composable
-private fun MatchCard(match: MatchSummaryDto, onClick: () -> Unit) {
+private fun MatchCard(match: MatchSummaryDto, onClick: () -> Unit, isDemo: Boolean = false) {
     InfoCard(
         modifier = Modifier
             .fillMaxWidth()
@@ -252,42 +386,102 @@ private fun MatchCard(match: MatchSummaryDto, onClick: () -> Unit) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "${match.homeTeam} vs ${match.awayTeam}",
-                    style = MaterialTheme.typography.titleMedium,
+                    text = "${match.league} · ${match.season}",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary,
                     fontWeight = FontWeight.Bold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-                Spacer(modifier = Modifier.height(6.dp))
-                Text(
-                    text = "${formatDate(match.matchDate)} | ${match.league} | ${match.season}",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                val sourceLabel = displayMatchSource(match.source)
-                if (sourceLabel.isNotBlank()) {
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = sourceLabel,
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.secondary,
-                    )
-                }
             }
-            Text(
-                text = displayMatchStatus(match.status),
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.primary,
-            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (isDemo) {
+                    StatusBadge(text = "Демо", accent = MaterialTheme.colorScheme.secondary)
+                }
+                StatusBadge(text = displayMatchStatus(match.status))
+            }
         }
-        if (match.result != null) {
-            Spacer(modifier = Modifier.height(12.dp))
-            KeyValueRow(
-                label = stringResource(R.string.final_score),
-                value = "${match.result.homeGoals}:${match.result.awayGoals}",
+        Spacer(modifier = Modifier.height(18.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+        ) {
+            TeamBlock(name = match.homeTeam, modifier = Modifier.weight(1f))
+            ScoreBlock(match = match, modifier = Modifier.widthIn(min = 92.dp))
+            TeamBlock(name = match.awayTeam, modifier = Modifier.weight(1f), alignEnd = true)
+        }
+        Spacer(modifier = Modifier.height(16.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+        ) {
+            Text(
+                text = formatDate(match.matchDate),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            val sourceLabel = displayMatchSource(match.source)
+            if (sourceLabel.isNotBlank() && !isDemo) {
+                StatusBadge(
+                    text = sourceLabel,
+                    accent = MaterialTheme.colorScheme.secondary,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun TeamBlock(name: String, modifier: Modifier = Modifier, alignEnd: Boolean = false) {
+    Column(
+        modifier = modifier,
+        horizontalAlignment = if (alignEnd) {
+            androidx.compose.ui.Alignment.End
+        } else {
+            androidx.compose.ui.Alignment.Start
+        },
+    ) {
+        TeamMark(name = name)
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = name,
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+            fontWeight = FontWeight.Bold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+@Composable
+private fun ScoreBlock(match: MatchSummaryDto, modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier,
+        contentAlignment = androidx.compose.ui.Alignment.Center,
+    ) {
+        Column(horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally) {
+            Text(
+                text = if (match.result != null) {
+                    "${match.result.homeGoals} : ${match.result.awayGoals}"
+                } else {
+                    "—"
+                },
+                style = MaterialTheme.typography.headlineSmall,
+                color = MaterialTheme.colorScheme.onSurface,
+                fontWeight = FontWeight.Black,
+            )
+            Text(
+                text = if (match.result != null) stringResource(R.string.final_score) else "VS",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
             )
         }
     }
@@ -317,6 +511,7 @@ private fun MatchListScreenPreview() {
             onLeagueChange = {},
             onSeasonChange = {},
             onRetry = {},
+            onRefresh = {},
             onMatchClick = {},
             onProfileClick = {},
         )

@@ -1,20 +1,28 @@
 package com.predictionfootball.app.ui.screens
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -22,9 +30,11 @@ import com.predictionfootball.app.models.MatchResultDto
 import com.predictionfootball.app.models.PredictionHistoryDto
 import com.predictionfootball.app.ui.components.ErrorContent
 import com.predictionfootball.app.ui.components.InfoCard
-import com.predictionfootball.app.ui.components.KeyValueRow
 import com.predictionfootball.app.ui.components.LoadingContent
 import com.predictionfootball.app.ui.components.ScreenScaffold
+import com.predictionfootball.app.ui.components.SecondaryActionButton
+import com.predictionfootball.app.ui.components.SectionTitle
+import com.predictionfootball.app.ui.components.StatusBadge
 import com.predictionfootball.app.ui.displayBinaryLabel
 import com.predictionfootball.app.ui.displayOutcomeLong
 import com.predictionfootball.app.ui.formatBackendUtcDateTime
@@ -59,11 +69,9 @@ fun HistoryScreen(
 ) {
     ScreenScaffold(
         title = "История прогнозов",
-        subtitle = "Последние запросы по матчам",
+        subtitle = "Последние сохранённые аналитические запросы",
         actions = {
-            OutlinedButton(onClick = onBack) {
-                Text("Назад")
-            }
+            SecondaryActionButton(text = "Назад", onClick = onBack)
         },
     ) {
         when {
@@ -82,6 +90,13 @@ private fun HistoryList(history: List<PredictionHistoryDto>) {
     val latestUniqueHistory = history
         .sortedByDescending { it.queryDate }
         .distinctBy { it.predictionId }
+    val listState = rememberLazyListState()
+
+    LaunchedEffect(latestUniqueHistory.size, latestUniqueHistory.firstOrNull()?.predictionId) {
+        if (latestUniqueHistory.isNotEmpty()) {
+            listState.scrollToItem(0)
+        }
+    }
 
     if (latestUniqueHistory.isEmpty()) {
         InfoCard(modifier = Modifier.fillMaxWidth()) {
@@ -90,7 +105,10 @@ private fun HistoryList(history: List<PredictionHistoryDto>) {
         return
     }
 
-    LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    LazyColumn(
+        state = listState,
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
         items(latestUniqueHistory, key = { it.predictionId }) { historyItem ->
             HistoryCard(historyItem)
         }
@@ -100,22 +118,40 @@ private fun HistoryList(history: List<PredictionHistoryDto>) {
 @Composable
 private fun HistoryCard(item: PredictionHistoryDto) {
     InfoCard(modifier = Modifier.fillMaxWidth()) {
-        Text(
-            text = "${item.homeTeam} - ${item.awayTeam}",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "${item.homeTeam} - ${item.awayTeam}",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontWeight = FontWeight.Bold,
+                )
+                Text(
+                    text = "${item.league} · ${item.season}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            StatusBadge(if (item.result == null) "Ожидается" else "Верно: ${predictionSummary(item)}")
+        }
         Spacer(modifier = Modifier.height(12.dp))
-        KeyValueRow("Лига", item.league)
-        Spacer(modifier = Modifier.height(8.dp))
-        KeyValueRow("Сезон", item.season)
-        Spacer(modifier = Modifier.height(8.dp))
-        KeyValueRow("Дата запроса", formatBackendUtcDateTime(item.queryDate))
-        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = "Запрос: ${formatBackendUtcDateTime(item.queryDate)}",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(modifier = Modifier.height(14.dp))
+        SectionTitle("Рынки прогноза")
+        Spacer(modifier = Modifier.height(10.dp))
         ForecastComparisonRow(
             label = "Исход матча",
             prediction = displayOutcomeLong(item.outcome),
             fact = item.result?.let { displayOutcomeLong(actualOutcomeCode(it.actualOutcome)) },
+            isPrimary = true,
         )
         item.btts?.let { value ->
             Spacer(modifier = Modifier.height(8.dp))
@@ -157,8 +193,6 @@ private fun HistoryCard(item: PredictionHistoryDto) {
                 fact = item.result?.let { actualScore(it.homeGoals, it.awayGoals) },
             )
         }
-        Spacer(modifier = Modifier.height(8.dp))
-        KeyValueRow("Статус", predictionSummary(item))
     }
 }
 
@@ -167,25 +201,106 @@ private fun ForecastComparisonRow(
     label: String,
     prediction: String,
     fact: String?,
+    isPrimary: Boolean = false,
 ) {
-    val value = if (fact == null) {
-        "Прогноз: $prediction; Факт: Матч не завершен"
-    } else {
-        val status = if (prediction == fact) "Угадано" else "Не угадано"
-        "Прогноз: $prediction; Факт: $fact; $status"
+    val isHit = fact != null && prediction == fact
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(14.dp),
+        color = if (isPrimary) {
+            MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)
+        } else {
+            MaterialTheme.colorScheme.surfaceVariant
+        },
+        border = BorderStroke(
+            1.dp,
+            if (isPrimary) MaterialTheme.colorScheme.primary.copy(alpha = 0.4f) else MaterialTheme.colorScheme.outline,
+        ),
+    ) {
+        BoxWithConstraints {
+            val compact = maxWidth < 560.dp
+            if (compact) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    MarketLabel(label)
+                    MarketValue(label = "Прогноз", value = prediction)
+                    MarketValue(label = "Факт", value = fact ?: "Ожидается")
+                    HistoryStatusBadge(fact = fact, isHit = isHit)
+                }
+            } else {
+                val rowHeight = if (isPrimary) 104.dp else 78.dp
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(rowHeight)
+                        .padding(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(14.dp),
+                    verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                ) {
+                    Column(modifier = Modifier.weight(1.25f)) {
+                        MarketLabel(label)
+                    }
+                    MarketValue(label = "Прогноз", value = prediction, modifier = Modifier.weight(1.1f))
+                    MarketValue(label = "Факт", value = fact ?: "Ожидается", modifier = Modifier.weight(1.1f))
+                    HistoryStatusBadge(fact = fact, isHit = isHit)
+                }
+            }
+        }
     }
-    Column {
+}
+
+@Composable
+private fun HistoryStatusBadge(fact: String?, isHit: Boolean) {
+    StatusBadge(
+        text = if (fact == null) "Ожидается" else if (isHit) "Верно" else "Ошибка",
+        modifier = Modifier.width(112.dp),
+        accent = historyStatusColor(fact = fact, isHit = isHit),
+    )
+}
+
+@Composable
+private fun MarketLabel(label: String) {
+    Text(
+        text = label,
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        fontWeight = FontWeight.SemiBold,
+        maxLines = 2,
+        overflow = TextOverflow.Ellipsis,
+    )
+}
+
+@Composable
+private fun MarketValue(label: String, value: String, modifier: Modifier = Modifier) {
+    Column(modifier = modifier) {
         Text(
             text = label,
-            style = MaterialTheme.typography.bodyMedium,
+            style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
+            fontWeight = FontWeight.Bold,
         )
         Text(
             text = value,
             style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurface,
+            fontWeight = FontWeight.Bold,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
         )
     }
+}
+
+@Composable
+private fun historyStatusColor(fact: String?, isHit: Boolean) = if (fact == null) {
+    MaterialTheme.colorScheme.onSurfaceVariant
+} else if (isHit) {
+    MaterialTheme.colorScheme.primary
+} else {
+    MaterialTheme.colorScheme.error
 }
 
 private fun actualOutcomeCode(value: Int): String = when (value) {
@@ -200,7 +315,7 @@ private fun binaryFact(value: Boolean): String = if (value) "Yes" else "No"
 private fun actualScore(homeGoals: Int, awayGoals: Int): String = "$homeGoals:$awayGoals"
 
 private fun predictionSummary(item: PredictionHistoryDto): String {
-    val result = item.result ?: return "Матч не завершен"
+    val result = item.result ?: return "Ожидается"
     val checks = buildList {
         add(actualOutcomeCode(result.actualOutcome) == item.outcome)
         item.btts?.let { add(it == binaryFact(result.homeGoals > 0 && result.awayGoals > 0)) }
@@ -212,9 +327,9 @@ private fun predictionSummary(item: PredictionHistoryDto): String {
         }
     }
     if (checks.isEmpty()) {
-        return "Факт недоступен"
+        return "0/0"
     }
-    return "Угадано: ${checks.count { it }} из ${checks.size} показателей"
+    return "${checks.count { it }}/${checks.size}"
 }
 
 @Preview(showBackground = true, widthDp = 900)
