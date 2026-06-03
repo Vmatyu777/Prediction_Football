@@ -17,6 +17,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
@@ -36,6 +37,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -60,6 +62,12 @@ import com.predictionfootball.app.viewmodel.MatchListMode
 import com.predictionfootball.app.viewmodel.MatchListViewModel
 import com.predictionfootball.app.viewmodel.UiState
 import kotlinx.coroutines.launch
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.util.Locale
+
+private val UpdatedTimeFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm", Locale("ru"))
 
 @Composable
 fun MatchListRoute(
@@ -71,20 +79,25 @@ fun MatchListRoute(
     val mode by viewModel.mode.collectAsState()
     val selectedLeague by viewModel.selectedLeague.collectAsState()
     val selectedSeason by viewModel.selectedSeason.collectAsState()
+    val lastUpdatedAtMillis by viewModel.lastUpdatedAtMillis.collectAsState()
+
+    LaunchedEffect(mode) {
+        viewModel.refreshStaleCurrentMode()
+    }
 
     MatchListScreen(
         state = state,
         selectedMode = mode,
         selectedLeague = selectedLeague,
         selectedSeason = selectedSeason,
+        lastUpdatedAtMillis = lastUpdatedAtMillis,
         onModeChange = viewModel::loadMatches,
-    onLeagueChange = viewModel::selectLeague,
-    onSeasonChange = viewModel::selectSeason,
-    onRetry = { viewModel.loadMatches() },
-    onRefresh = viewModel::refreshCurrentMode,
-    onMatchClick = onMatchClick,
-    onProfileClick = onProfileClick,
-)
+        onLeagueChange = viewModel::selectLeague,
+        onSeasonChange = viewModel::selectSeason,
+        onRetry = { viewModel.loadMatches() },
+        onMatchClick = onMatchClick,
+        onProfileClick = onProfileClick,
+    )
 }
 
 @Composable
@@ -93,11 +106,11 @@ fun MatchListScreen(
     selectedMode: MatchListMode,
     selectedLeague: String?,
     selectedSeason: String?,
+    lastUpdatedAtMillis: Long?,
     onModeChange: (MatchListMode) -> Unit,
     onLeagueChange: (String?) -> Unit,
     onSeasonChange: (String?) -> Unit,
     onRetry: () -> Unit,
-    onRefresh: () -> Unit,
     onMatchClick: (Long) -> Unit,
     onProfileClick: () -> Unit,
 ) {
@@ -112,10 +125,7 @@ fun MatchListScreen(
         title = stringResource(R.string.football_matches),
         subtitle = "Матчи, статусы и быстрый доступ к прогнозам",
         actions = {
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                SecondaryActionButton(text = "Обновить матчи", onClick = onRefresh)
-                SecondaryActionButton(text = "Профиль", onClick = onProfileClick)
-            }
+            SecondaryActionButton(text = "Профиль", onClick = onProfileClick)
         },
     ) {
         SectionTitle(
@@ -132,6 +142,7 @@ fun MatchListScreen(
                     selected = selectedMode == mode,
                     onClick = {
                         if (selectedMode == mode) {
+                            onModeChange(mode)
                             coroutineScope.launch { listState.animateScrollToItem(0) }
                         } else {
                             onModeChange(mode)
@@ -156,13 +167,49 @@ fun MatchListScreen(
         }
         if (state is UiState.Success) {
             Spacer(modifier = Modifier.height(12.dp))
-            FilterRow(
-                matches = state.data,
-                selectedLeague = selectedLeague,
-                selectedSeason = selectedSeason,
-                onLeagueChange = onLeagueChange,
-                onSeasonChange = onSeasonChange,
-            )
+            BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+                val updatedText = lastUpdatedAtMillis?.let { "Обновлено: ${formatUpdatedTime(it)}" }
+                if (maxWidth >= 640.dp) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.Bottom,
+                    ) {
+                        FilterRow(
+                            matches = state.data,
+                            selectedLeague = selectedLeague,
+                            selectedSeason = selectedSeason,
+                            onLeagueChange = onLeagueChange,
+                            onSeasonChange = onSeasonChange,
+                        )
+                        updatedText?.let { text ->
+                            Text(
+                                text = text,
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                } else {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        FilterRow(
+                            matches = state.data,
+                            selectedLeague = selectedLeague,
+                            selectedSeason = selectedSeason,
+                            onLeagueChange = onLeagueChange,
+                            onSeasonChange = onSeasonChange,
+                        )
+                        updatedText?.let { text ->
+                            Text(
+                                text = text,
+                                modifier = Modifier.fillMaxWidth(),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                }
+            }
         }
         Spacer(modifier = Modifier.height(16.dp))
         if (selectedMode == MatchListMode.Showcase) {
@@ -491,6 +538,12 @@ internal fun formatDate(value: String): String = value
     .replace("T", " ")
     .substringBefore(".")
 
+private fun formatUpdatedTime(value: Long): String {
+    return Instant.ofEpochMilli(value)
+        .atZone(ZoneId.systemDefault())
+        .format(UpdatedTimeFormatter)
+}
+
 @Composable
 private fun MatchListMode.titleText(): String = when (this) {
     MatchListMode.Recent -> stringResource(R.string.recent_matches)
@@ -507,11 +560,11 @@ private fun MatchListScreenPreview() {
             selectedMode = MatchListMode.Recent,
             selectedLeague = null,
             selectedSeason = null,
+            lastUpdatedAtMillis = System.currentTimeMillis(),
             onModeChange = {},
             onLeagueChange = {},
             onSeasonChange = {},
             onRetry = {},
-            onRefresh = {},
             onMatchClick = {},
             onProfileClick = {},
         )

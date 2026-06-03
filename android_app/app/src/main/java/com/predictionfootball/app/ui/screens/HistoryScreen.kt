@@ -67,6 +67,13 @@ fun HistoryScreen(
     onBack: () -> Unit,
     onRetry: () -> Unit,
 ) {
+    val isInitialHistoryLoading = state.historyLoading &&
+        state.history.isEmpty() &&
+        state.errorMessage == null
+    val isInitialHistoryPending = !state.hasLoadedHistory &&
+        state.history.isEmpty() &&
+        state.errorMessage == null
+
     ScreenScaffold(
         title = "История прогнозов",
         subtitle = "Последние сохранённые аналитические запросы",
@@ -75,7 +82,8 @@ fun HistoryScreen(
         },
     ) {
         when {
-            state.isLoading && state.history.isEmpty() -> LoadingContent("Загрузка истории")
+            isInitialHistoryLoading -> LoadingContent("Загрузка истории")
+            isInitialHistoryPending -> Unit
             state.errorMessage != null && state.history.isEmpty() -> ErrorContent(
                 message = state.errorMessage,
                 onRetry = onRetry,

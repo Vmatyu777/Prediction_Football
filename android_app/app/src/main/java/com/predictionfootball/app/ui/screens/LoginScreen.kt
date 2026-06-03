@@ -15,15 +15,20 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.zIndex
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
@@ -39,6 +44,7 @@ import com.predictionfootball.app.ui.components.StatusBadge
 import com.predictionfootball.app.ui.theme.PredictionFootballTheme
 import com.predictionfootball.app.viewmodel.AuthFormState
 import com.predictionfootball.app.viewmodel.AuthViewModel
+import com.predictionfootball.app.viewmodel.LoginFieldsState
 import kotlinx.coroutines.delay
 
 @Composable
@@ -48,27 +54,50 @@ fun LoginRoute(
     onRegisterClick: () -> Unit,
 ) {
     val state by viewModel.formState.collectAsState()
+    val fieldsState by viewModel.loginFieldsState.collectAsState()
 
     LoginScreen(
         state = state,
+        fieldsState = fieldsState,
+        onUsernameOrEmailChange = viewModel::updateLoginUsernameOrEmail,
         onLogin = { usernameOrEmail, password ->
             viewModel.login(usernameOrEmail, password, onLoginSuccess)
         },
         onRegisterClick = onRegisterClick,
+        onScreenHidden = viewModel::clearAuthFormState,
     )
 }
 
 @Composable
 fun LoginScreen(
     state: AuthFormState,
+    fieldsState: LoginFieldsState,
+    onUsernameOrEmailChange: (String) -> Unit,
     onLogin: (String, String) -> Unit,
     onRegisterClick: () -> Unit,
+    onScreenHidden: () -> Unit = {},
 ) {
-    var usernameOrEmail by rememberSaveable { mutableStateOf("") }
-    var password by rememberSaveable { mutableStateOf("") }
-    var passwordVisible by rememberSaveable { mutableStateOf(false) }
+    var password by remember { mutableStateOf("") }
+    var passwordVisible by remember { mutableStateOf(false) }
     var visibleError by rememberSaveable { mutableStateOf<String?>(null) }
     var submitAttempt by rememberSaveable { mutableStateOf(0) }
+    var isAuthTransitioning by rememberSaveable { mutableStateOf(false) }
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val isButtonLoading = state.isLoading || isAuthTransitioning
+
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_STOP) {
+                visibleError = null
+                submitAttempt = 0
+                onScreenHidden()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
 
     LaunchedEffect(submitAttempt, state.errorMessage, state.isLoading) {
         if (state.isLoading) {
@@ -76,6 +105,7 @@ fun LoginScreen(
             return@LaunchedEffect
         }
         if (submitAttempt > 0 && !state.isLoading && state.errorMessage != null) {
+            isAuthTransitioning = false
             visibleError = state.errorMessage
             delay(2700)
             visibleError = null
@@ -93,13 +123,13 @@ fun LoginScreen(
             modifier = Modifier.fillMaxWidth(),
             contentAlignment = Alignment.TopCenter,
         ) {
-            val notificationAlignment = if (maxWidth >= 640.dp) Alignment.TopEnd else Alignment.TopCenter
+            val notificationAlignment = Alignment.TopEnd
             InfoCard(modifier = Modifier.widthIn(max = 540.dp).fillMaxWidth()) {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     StatusBadge("Футбольная аналитика")
                     OutlinedTextField(
-                        value = usernameOrEmail,
-                        onValueChange = { usernameOrEmail = it },
+                        value = fieldsState.usernameOrEmail,
+                        onValueChange = onUsernameOrEmailChange,
                         modifier = Modifier.fillMaxWidth(),
                         label = { Text("Логин или эл. почта") },
                         singleLine = true,
@@ -110,7 +140,11 @@ fun LoginScreen(
                         modifier = Modifier.fillMaxWidth(),
                         label = { Text("Пароль") },
                         singleLine = true,
-                        visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                        visualTransformation = if (passwordVisible) {
+                            VisualTransformation.None
+                        } else {
+                            PasswordVisualTransformation()
+                        },
                         trailingIcon = {
                             IconButton(onClick = { passwordVisible = !passwordVisible }) {
                                 Icon(
@@ -121,16 +155,21 @@ fun LoginScreen(
                                             R.drawable.ic_visibility_24
                                         },
                                     ),
-                                    contentDescription = if (passwordVisible) "Скрыть пароль" else "Показать пароль",
+                                    contentDescription = if (passwordVisible) {
+                                        "Скрыть пароль"
+                                    } else {
+                                        "Показать пароль"
+                                    },
                                 )
                             }
                         },
                     )
                     PrimaryActionButton(
-                        text = if (state.isLoading) "Вход..." else "Войти",
+                        text = if (isButtonLoading) "Вход..." else "Войти",
                         onClick = {
                             submitAttempt += 1
-                            onLogin(usernameOrEmail, password)
+                            isAuthTransitioning = true
+                            onLogin(fieldsState.usernameOrEmail, password)
                         },
                         modifier = Modifier.fillMaxWidth(),
                     )
@@ -161,6 +200,8 @@ private fun LoginScreenPreview() {
     PredictionFootballTheme {
         LoginScreen(
             state = AuthFormState(),
+            fieldsState = LoginFieldsState(),
+            onUsernameOrEmailChange = {},
             onLogin = { _, _ -> },
             onRegisterClick = {},
         )

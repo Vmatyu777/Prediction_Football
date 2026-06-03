@@ -6,6 +6,7 @@ import com.predictionfootball.app.models.AuthUserDto
 import com.predictionfootball.app.models.PredictionHistoryDto
 import com.predictionfootball.app.network.AuthRepository
 import com.predictionfootball.app.network.AuthTokenStore
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -19,6 +20,7 @@ private const val MAX_USERNAME_LENGTH = 50
 private const val MIN_EMAIL_LENGTH = 5
 private const val MAX_EMAIL_LENGTH = 100
 private const val MAX_PASSWORD_LENGTH = 128
+private const val HISTORY_INITIAL_LOADING_MIN_MILLIS = 400L
 private const val LOGIN_RULE_MESSAGE = "Логин может содержать только латинские буквы, цифры, _ и -"
 private const val LOGIN_LENGTH_MESSAGE = "Логин должен быть не длиннее 50 символов"
 private const val EMAIL_RULE_MESSAGE = "Введите корректную эл. почту"
@@ -31,9 +33,20 @@ data class AuthFormState(
     val errorMessage: String? = null,
 )
 
+data class LoginFieldsState(
+    val usernameOrEmail: String = "",
+)
+
+data class RegisterFieldsState(
+    val username: String = "",
+    val email: String = "",
+)
+
 data class ProfileState(
     val user: AuthUserDto? = null,
     val history: List<PredictionHistoryDto> = emptyList(),
+    val hasLoadedHistory: Boolean = false,
+    val historyLoading: Boolean = false,
     val isLoading: Boolean = false,
     val errorMessage: String? = null,
 )
@@ -44,10 +57,37 @@ class AuthViewModel : ViewModel() {
     private val _formState = MutableStateFlow(AuthFormState())
     val formState: StateFlow<AuthFormState> = _formState.asStateFlow()
 
+    private val _loginFieldsState = MutableStateFlow(LoginFieldsState())
+    val loginFieldsState: StateFlow<LoginFieldsState> = _loginFieldsState.asStateFlow()
+
+    private val _registerFieldsState = MutableStateFlow(RegisterFieldsState())
+    val registerFieldsState: StateFlow<RegisterFieldsState> = _registerFieldsState.asStateFlow()
+
     private val _profileState = MutableStateFlow(ProfileState())
     val profileState: StateFlow<ProfileState> = _profileState.asStateFlow()
 
     val isAuthenticated: StateFlow<Boolean> = AuthTokenStore.isAuthenticated
+
+    fun clearAuthFormState() {
+        _formState.value = AuthFormState()
+    }
+
+    fun updateLoginUsernameOrEmail(value: String) {
+        _loginFieldsState.value = _loginFieldsState.value.copy(usernameOrEmail = value)
+    }
+
+    fun updateRegisterUsername(value: String) {
+        _registerFieldsState.value = _registerFieldsState.value.copy(username = value)
+    }
+
+    fun updateRegisterEmail(value: String) {
+        _registerFieldsState.value = _registerFieldsState.value.copy(email = value)
+    }
+
+    fun clearAuthFields() {
+        _loginFieldsState.value = LoginFieldsState()
+        _registerFieldsState.value = RegisterFieldsState()
+    }
 
     fun resolveStartupSession(
         onAuthenticated: () -> Unit,
@@ -83,7 +123,7 @@ class AuthViewModel : ViewModel() {
         _formState.value = AuthFormState(isLoading = true)
         viewModelScope.launch {
             runCatching {
-                repository.login(usernameOrEmail.trim(), password)
+                repository.login(normalizeLoginIdentifier(usernameOrEmail), password)
             }.onSuccess {
                 _formState.value = AuthFormState()
                 onSuccess()
@@ -103,7 +143,7 @@ class AuthViewModel : ViewModel() {
         _formState.value = AuthFormState(isLoading = true)
         viewModelScope.launch {
             runCatching {
-                repository.register(username.trim(), email.trim(), password)
+                repository.register(username.trim(), normalizeEmail(email), password)
                 repository.login(username.trim(), password)
             }.onSuccess {
                 _formState.value = AuthFormState()
@@ -140,14 +180,33 @@ class AuthViewModel : ViewModel() {
     }
 
     fun loadHistory(onSessionExpired: () -> Unit = {}) {
-        _profileState.value = _profileState.value.copy(isLoading = true, errorMessage = null)
+        val showInitialLoading = !_profileState.value.hasLoadedHistory
+        _profileState.value = _profileState.value.copy(
+            historyLoading = false,
+            errorMessage = null,
+        )
         viewModelScope.launch {
-            runCatching {
+            var historyLoadingShownAt: Long? = null
+            val loadingJob = if (showInitialLoading) {
+                launch {
+                    delay(HISTORY_INITIAL_LOADING_MIN_MILLIS)
+                    historyLoadingShownAt = System.currentTimeMillis()
+                    _profileState.value = _profileState.value.copy(historyLoading = true)
+                }
+            } else {
+                null
+            }
+            val result = runCatching {
                 repository.history()
-            }.onSuccess { history ->
+            }
+            loadingJob?.cancel()
+            waitForInitialHistoryLoading(historyLoadingShownAt)
+
+            result.onSuccess { history ->
                 _profileState.value = _profileState.value.copy(
                     history = history,
-                    isLoading = false,
+                    hasLoadedHistory = true,
+                    historyLoading = false,
                     errorMessage = null,
                 )
             }.onFailure { error ->
@@ -156,7 +215,7 @@ class AuthViewModel : ViewModel() {
                     onSessionExpired()
                 } else {
                     _profileState.value = _profileState.value.copy(
-                        isLoading = false,
+                        historyLoading = false,
                         errorMessage = error.message ?: "Не удалось загрузить историю",
                     )
                 }
@@ -164,10 +223,31 @@ class AuthViewModel : ViewModel() {
         }
     }
 
+    fun resetHistoryCache() {
+        _profileState.value = _profileState.value.copy(
+            history = emptyList(),
+            hasLoadedHistory = false,
+            historyLoading = false,
+            errorMessage = null,
+        )
+    }
+
     fun logout() {
         repository.logout()
         _profileState.value = ProfileState()
         _formState.value = AuthFormState()
+        clearAuthFields()
+    }
+
+    private suspend fun waitForInitialHistoryLoading(historyLoadingShownAt: Long?) {
+        if (historyLoadingShownAt == null) {
+            return
+        }
+
+        val remaining = HISTORY_INITIAL_LOADING_MIN_MILLIS - (System.currentTimeMillis() - historyLoadingShownAt)
+        if (remaining > 0) {
+            delay(remaining)
+        }
     }
 
     private fun expireSession() {
@@ -181,7 +261,7 @@ class AuthViewModel : ViewModel() {
     }
 
     private fun validateRegistration(username: String, email: String, password: String): String? {
-        val normalizedEmail = email.trim()
+        val normalizedEmail = normalizeEmail(email)
         return when {
             username.isBlank() -> "Введите логин"
             username.trim().length > MAX_USERNAME_LENGTH -> LOGIN_LENGTH_MESSAGE
@@ -198,6 +278,19 @@ class AuthViewModel : ViewModel() {
             !password.any { it.isDigit() } -> PASSWORD_RULE_MESSAGE
             else -> null
         }
+    }
+
+    private fun normalizeLoginIdentifier(value: String): String {
+        val trimmed = value.trim()
+        return if ("@" in trimmed) {
+            normalizeEmail(trimmed)
+        } else {
+            trimmed
+        }
+    }
+
+    private fun normalizeEmail(value: String): String {
+        return value.trim().lowercase(Locale.ROOT)
     }
 
     private fun Throwable.toAuthErrorMessage(): String {

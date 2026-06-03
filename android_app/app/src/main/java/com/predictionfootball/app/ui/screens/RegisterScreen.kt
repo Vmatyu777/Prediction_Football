@@ -15,15 +15,20 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
@@ -39,6 +44,7 @@ import com.predictionfootball.app.ui.components.StatusBadge
 import com.predictionfootball.app.ui.theme.PredictionFootballTheme
 import com.predictionfootball.app.viewmodel.AuthFormState
 import com.predictionfootball.app.viewmodel.AuthViewModel
+import com.predictionfootball.app.viewmodel.RegisterFieldsState
 import kotlinx.coroutines.delay
 
 @Composable
@@ -48,28 +54,52 @@ fun RegisterRoute(
     onLoginClick: () -> Unit,
 ) {
     val state by viewModel.formState.collectAsState()
+    val fieldsState by viewModel.registerFieldsState.collectAsState()
 
     RegisterScreen(
         state = state,
+        fieldsState = fieldsState,
+        onUsernameChange = viewModel::updateRegisterUsername,
+        onEmailChange = viewModel::updateRegisterEmail,
         onRegister = { username, email, password ->
             viewModel.register(username, email, password, onRegisterSuccess)
         },
         onLoginClick = onLoginClick,
+        onScreenHidden = viewModel::clearAuthFormState,
     )
 }
 
 @Composable
 fun RegisterScreen(
     state: AuthFormState,
+    fieldsState: RegisterFieldsState,
+    onUsernameChange: (String) -> Unit,
+    onEmailChange: (String) -> Unit,
     onRegister: (String, String, String) -> Unit,
     onLoginClick: () -> Unit,
+    onScreenHidden: () -> Unit = {},
 ) {
-    var username by rememberSaveable { mutableStateOf("") }
-    var email by rememberSaveable { mutableStateOf("") }
-    var password by rememberSaveable { mutableStateOf("") }
-    var passwordVisible by rememberSaveable { mutableStateOf(false) }
+    var password by remember { mutableStateOf("") }
+    var passwordVisible by remember { mutableStateOf(false) }
     var visibleError by rememberSaveable { mutableStateOf<String?>(null) }
     var submitAttempt by rememberSaveable { mutableStateOf(0) }
+    var isAuthTransitioning by rememberSaveable { mutableStateOf(false) }
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val isButtonLoading = state.isLoading || isAuthTransitioning
+
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_STOP) {
+                visibleError = null
+                submitAttempt = 0
+                onScreenHidden()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
 
     LaunchedEffect(submitAttempt, state.errorMessage, state.isLoading) {
         if (state.isLoading) {
@@ -77,6 +107,7 @@ fun RegisterScreen(
             return@LaunchedEffect
         }
         if (submitAttempt > 0 && !state.isLoading && state.errorMessage != null) {
+            isAuthTransitioning = false
             visibleError = state.errorMessage
             delay(2700)
             visibleError = null
@@ -94,20 +125,20 @@ fun RegisterScreen(
             modifier = Modifier.fillMaxWidth(),
             contentAlignment = Alignment.TopCenter,
         ) {
-            val notificationAlignment = if (maxWidth >= 640.dp) Alignment.TopEnd else Alignment.TopCenter
+            val notificationAlignment = Alignment.TopEnd
             InfoCard(modifier = Modifier.widthIn(max = 540.dp).fillMaxWidth()) {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     StatusBadge("Аккаунт пользователя")
                     OutlinedTextField(
-                        value = username,
-                        onValueChange = { username = it },
+                        value = fieldsState.username,
+                        onValueChange = onUsernameChange,
                         modifier = Modifier.fillMaxWidth(),
                         label = { Text("Логин") },
                         singleLine = true,
                     )
                     OutlinedTextField(
-                        value = email,
-                        onValueChange = { email = it },
+                        value = fieldsState.email,
+                        onValueChange = onEmailChange,
                         modifier = Modifier.fillMaxWidth(),
                         label = { Text("Эл. почта") },
                         singleLine = true,
@@ -118,7 +149,11 @@ fun RegisterScreen(
                         modifier = Modifier.fillMaxWidth(),
                         label = { Text("Пароль") },
                         singleLine = true,
-                        visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                        visualTransformation = if (passwordVisible) {
+                            VisualTransformation.None
+                        } else {
+                            PasswordVisualTransformation()
+                        },
                         trailingIcon = {
                             IconButton(onClick = { passwordVisible = !passwordVisible }) {
                                 Icon(
@@ -129,16 +164,21 @@ fun RegisterScreen(
                                             R.drawable.ic_visibility_24
                                         },
                                     ),
-                                    contentDescription = if (passwordVisible) "Скрыть пароль" else "Показать пароль",
+                                    contentDescription = if (passwordVisible) {
+                                        "Скрыть пароль"
+                                    } else {
+                                        "Показать пароль"
+                                    },
                                 )
                             }
                         },
                     )
                     PrimaryActionButton(
-                        text = if (state.isLoading) "Создание..." else "Зарегистрироваться",
+                        text = if (isButtonLoading) "Создание..." else "Зарегистрироваться",
                         onClick = {
                             submitAttempt += 1
-                            onRegister(username, email, password)
+                            isAuthTransitioning = true
+                            onRegister(fieldsState.username, fieldsState.email, password)
                         },
                         modifier = Modifier.fillMaxWidth(),
                     )
@@ -169,6 +209,9 @@ private fun RegisterScreenPreview() {
     PredictionFootballTheme {
         RegisterScreen(
             state = AuthFormState(),
+            fieldsState = RegisterFieldsState(),
+            onUsernameChange = {},
+            onEmailChange = {},
             onRegister = { _, _, _ -> },
             onLoginClick = {},
         )

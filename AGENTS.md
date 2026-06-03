@@ -214,7 +214,7 @@ Current design decision: exact score must not drive the final system because it 
 - Splash validates a stored token through `GET /auth/me`; valid tokens continue to the match list, missing or invalid tokens go to login.
 - Profile shows the authenticated user in a dashboard-style card and links to prediction history; logout clears the token and returns to login.
 - Prediction history is sorted by `query_date` descending and then deduplicated by `prediction_id` for display.
-- Match list supports Recent, Upcoming, and Examples tabs plus client-side filters by league and season with an `All` option. It opens on Upcoming by default, caches loaded tab data in `MatchListViewModel`, and exposes a manual `Обновить матчи` refresh action.
+- Match list supports Recent, Upcoming, and Examples tabs plus client-side filters by league and season with an `All` option. It opens on Upcoming by default, caches loaded tab data in `MatchListViewModel`, refreshes stale cached tabs in the background after the client-side TTL expires, and shows the active tab's last successful update time.
 - Upcoming actual matches and seeded demo matches are visually separated in Android; demo matches keep a compact `Демо` badge.
 - Android UI maps technical backend values to Russian user-facing labels through display mapping helpers.
 - Android displays backend match sources through user-facing labels: `historical` is hidden, `demo` is shown as a demo match, and `api` is shown as an API match.
@@ -222,7 +222,7 @@ Current design decision: exact score must not drive the final system because it 
 - Team names, league names, and country names should remain as returned by the backend.
 - Backend `prediction.created_at` is stored as UTC; Android displays it in the local timezone of the emulator/tablet.
 - The Android UI remains tablet-first, with basic phone support improved for the MVP.
-- Login and Register preserve input across configuration changes, are vertically scrollable, and use keyboard-safe IME padding.
+- Login and Register preserve non-password input through `AuthViewModel`, keep password values local to the Compose screen, are vertically scrollable, and use keyboard-safe IME padding.
 - Match Details uses a compact tablet layout; Prediction Result uses a dark analytics dashboard layout; History uses readable market cards with Russian statuses.
 - Match Details, Prediction Result, and Profile are vertically scrollable where needed.
 - Prediction Result uses one column on narrow screens and two columns on wider tablet screens.

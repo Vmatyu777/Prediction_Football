@@ -17,7 +17,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -82,7 +84,17 @@ fun ProfileScreen(
         subtitle = "Аккаунт и сохранённая аналитика",
         modifier = Modifier.verticalScroll(rememberScrollState()),
         actions = {
-            SecondaryActionButton(text = "Выйти", onClick = onLogout)
+            OutlinedButton(
+                onClick = onLogout,
+                modifier = Modifier.height(48.dp),
+                shape = RoundedCornerShape(14.dp),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.55f)),
+                colors = ButtonDefaults.outlinedButtonColors(
+                    contentColor = MaterialTheme.colorScheme.error,
+                ),
+            ) {
+                Text("Выйти")
+            }
         },
     ) {
         when {
@@ -165,7 +177,7 @@ private fun ProfileContent(
             ) {
                 if (maxWidth < 420.dp) {
                     Column(
-                        modifier = Modifier.widthIn(max = 320.dp).fillMaxWidth(),
+                        modifier = Modifier.widthIn(max = 360.dp).fillMaxWidth(),
                         verticalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
                         PrimaryActionButton(
@@ -181,7 +193,7 @@ private fun ProfileContent(
                     }
                 } else {
                     Row(
-                        modifier = Modifier.widthIn(max = 560.dp).fillMaxWidth(),
+                        modifier = Modifier.widthIn(max = 640.dp).fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(14.dp),
                     ) {
                         PrimaryActionButton(

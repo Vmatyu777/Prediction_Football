@@ -3,6 +3,10 @@ package com.predictionfootball.app
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.toArgb
 import com.predictionfootball.app.navigation.PredictionFootballNavHost
 import com.predictionfootball.app.network.AuthTokenStore
@@ -17,7 +21,12 @@ class MainActivity : ComponentActivity() {
         AuthTokenStore.initialize(applicationContext)
         setContent {
             PredictionFootballTheme {
-                PredictionFootballNavHost()
+                Surface(
+                    modifier = Modifier.fillMaxSize(),
+                    color = MaterialTheme.colorScheme.background,
+                ) {
+                    PredictionFootballNavHost()
+                }
             }
         }
     }

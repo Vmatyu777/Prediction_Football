@@ -81,7 +81,7 @@ Screen goals:
 
 - Splash: short startup screen that validates a stored token with `GET /auth/me`.
 - Login/Register: FastAPI auth flow with validation, floating in-app error notifications, and show/hide password controls.
-- Match List: Recent/Upcoming/Best Predictions switch plus league and season filters with `All`; the screen opens on Upcoming, caches loaded tabs in `MatchListViewModel`, and provides a manual `Обновить матчи` action.
+- Match List: Recent/Upcoming/Best Predictions switch plus league and season filters with `All`; the screen opens on Upcoming, caches loaded tabs in `MatchListViewModel`, refreshes stale cached tabs in the background after the client-side TTL expires, and shows the last successful update time for the active tab.
 - Match Details: teams, league, date, status, result if available, latest odds, and compact tablet layout.
 - Prediction Result: final reconciled prediction from `POST /predict/{match_id}` in a dark analytics dashboard style.
 - Profile: current user details in a dashboard-style card, prediction history link, and logout.
@@ -98,7 +98,7 @@ For tablet layout, prefer a list-detail layout on wide screens:
 The Android app remains tablet-first. Basic phone support has been improved without adding a separate adaptive architecture:
 
 - The completed UI redesign uses a dark football analytics theme with near-black backgrounds, dark cards, and lime accents for CTAs, statuses, prediction highlights, and progress bars.
-- Login and Register preserve user input across configuration changes with `rememberSaveable`.
+- Login and Register preserve non-password input in `AuthViewModel`; password values stay local to the Compose screen and are not stored in the ViewModel.
 - Login and Register are vertically scrollable, use IME padding so the keyboard does not hide form controls, and show floating in-app notifications instead of system Toasts.
 - Match Details, Prediction Result, and Profile are vertically scrollable where needed to avoid clipped content on phones and landscape-sized heights.
 - Match Details has a more compact tablet layout; Prediction Result and History use dark sports analytics cards; Profile uses a centered dashboard-style user card.
