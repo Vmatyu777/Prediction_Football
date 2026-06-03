@@ -284,6 +284,7 @@ class User(Base):
     email: Mapped[str] = mapped_column(String(100), nullable=False, unique=True)
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    last_history_viewed_at: Mapped[datetime | None] = mapped_column(DateTime)
     role_id: Mapped[int] = mapped_column(ForeignKey("user_roles.id"), nullable=False)
 
     role: Mapped["UserRole"] = relationship(back_populates="users")

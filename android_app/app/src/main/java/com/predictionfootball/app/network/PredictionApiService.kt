@@ -7,6 +7,8 @@ import com.predictionfootball.app.models.MatchDetailDto
 import com.predictionfootball.app.models.MatchSummaryDto
 import com.predictionfootball.app.models.PredictionDto
 import com.predictionfootball.app.models.PredictionHistoryDto
+import com.predictionfootball.app.models.PredictionHistoryUnreadCountDto
+import com.predictionfootball.app.models.PredictionHistoryViewedDto
 import com.predictionfootball.app.models.RegisterRequestDto
 import retrofit2.http.Body
 import retrofit2.http.GET
@@ -26,6 +28,12 @@ interface PredictionApiService {
 
     @GET("users/me/history")
     suspend fun history(): List<PredictionHistoryDto>
+
+    @GET("users/me/history/unread-count")
+    suspend fun historyUnreadCount(): PredictionHistoryUnreadCountDto
+
+    @POST("users/me/history/mark-viewed")
+    suspend fun markHistoryViewed(): PredictionHistoryViewedDto
 
     @GET("matches/recent")
     suspend fun getRecentMatches(

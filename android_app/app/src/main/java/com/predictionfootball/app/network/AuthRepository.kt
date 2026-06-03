@@ -4,6 +4,8 @@ import com.predictionfootball.app.models.AuthTokenDto
 import com.predictionfootball.app.models.AuthUserDto
 import com.predictionfootball.app.models.LoginRequestDto
 import com.predictionfootball.app.models.PredictionHistoryDto
+import com.predictionfootball.app.models.PredictionHistoryUnreadCountDto
+import com.predictionfootball.app.models.PredictionHistoryViewedDto
 import com.predictionfootball.app.models.RegisterRequestDto
 
 class AuthRepository(
@@ -22,6 +24,10 @@ class AuthRepository(
     suspend fun me(): AuthUserDto = api.me()
 
     suspend fun history(): List<PredictionHistoryDto> = api.history()
+
+    suspend fun historyUnreadCount(): PredictionHistoryUnreadCountDto = api.historyUnreadCount()
+
+    suspend fun markHistoryViewed(): PredictionHistoryViewedDto = api.markHistoryViewed()
 
     fun logout() {
         AuthTokenStore.clearAccessToken()

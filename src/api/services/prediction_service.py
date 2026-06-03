@@ -5,6 +5,7 @@ from decimal import Decimal
 
 import numpy as np
 import pandas as pd
+from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 
 from src.api.database.models import (
@@ -13,6 +14,7 @@ from src.api.database.models import (
     Prediction,
     PredictionCharacteristic,
     PredictionCharacteristicValue,
+    User,
     UserQueryHistory,
 )
 from src.api.schemas import (
@@ -20,6 +22,8 @@ from src.api.schemas import (
     PredictionCharacteristicResponse,
     PredictionDetailResponse,
     PredictionHistoryResponse,
+    PredictionHistoryUnreadCountResponse,
+    PredictionHistoryViewedResponse,
     PredictionRequest,
     PredictionResponse,
     PredictionStoredResponse,
@@ -215,6 +219,37 @@ def get_user_prediction_history(db: Session, user_id: int) -> list[PredictionHis
     )
 
     return [build_prediction_history_response(row) for row in rows]
+
+
+def get_user_history_unread_count(db: Session, user_id: int) -> PredictionHistoryUnreadCountResponse:
+    user = db.query(User).filter(User.id == user_id).first()
+    if user is None:
+        return PredictionHistoryUnreadCountResponse(new_predictions_count=0)
+
+    query = db.query(func.count(func.distinct(UserQueryHistory.prediction_id))).filter(
+        UserQueryHistory.user_id == user_id
+    )
+    if user.last_history_viewed_at is not None:
+        query = query.filter(UserQueryHistory.query_date > user.last_history_viewed_at)
+
+    return PredictionHistoryUnreadCountResponse(new_predictions_count=int(query.scalar() or 0))
+
+
+def mark_user_history_viewed(db: Session, user_id: int) -> PredictionHistoryViewedResponse:
+    user = db.query(User).filter(User.id == user_id).first()
+    if user is None:
+        raise ValueError(f"User not found: {user_id}")
+
+    latest_query_date = (
+        db.query(func.max(UserQueryHistory.query_date))
+        .filter(UserQueryHistory.user_id == user_id)
+        .scalar()
+    )
+    user.last_history_viewed_at = latest_query_date or datetime.utcnow()
+    db.commit()
+    db.refresh(user)
+
+    return PredictionHistoryViewedResponse(last_history_viewed_at=user.last_history_viewed_at)
 
 
 def build_prediction_history_response(row: UserQueryHistory) -> PredictionHistoryResponse:

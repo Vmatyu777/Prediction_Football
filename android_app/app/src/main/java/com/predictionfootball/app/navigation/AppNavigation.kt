@@ -37,7 +37,8 @@ fun PredictionFootballNavHost() {
     val authViewModel: AuthViewModel = viewModel()
     val navigateToLogin: () -> Unit = {
         navController.navigate(Routes.Login) {
-            popUpTo(0) { inclusive = true }
+            popUpTo(Routes.Splash) { inclusive = true }
+            launchSingleTop = true
         }
     }
 

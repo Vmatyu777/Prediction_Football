@@ -38,8 +38,9 @@ This document gives a short engineering overview of the current project artifact
 - `src/api/schemas.py` stores Pydantic request and response schemas, including auth validation rules for username, email, and password.
 - `src/api/services/auth_service.py` contains password hashing, JWT token creation/validation, current-user dependencies, registration, and login helpers.
 - `src/api/services/model_registry.py` reads `configs/final_app_models.json` and loads final local model binaries from `models/final_app/`.
-- `src/api/services/prediction_service.py` contains model inference, exact-score clipping, reconciliation, prediction persistence, and model-aware prediction reuse by `match_id` plus deployed outcome `model_id`.
-- `src/api/database/clear_runtime_data.py` is a development-only cleanup script for runtime/demo data. It clears `users`, `user_query_history`, `predictions`, and `prediction_characteristic_values` while preserving football domain data, odds, teams, model metadata, metrics, and ELO ratings.
+- `src/api/services/prediction_service.py` contains model inference, exact-score clipping, reconciliation, prediction persistence, model-aware prediction reuse by `match_id` plus deployed outcome `model_id`, and unread-history count/mark-viewed helpers.
+- `src/api/database/clear_runtime_data.py` is a development-only cleanup script for runtime/demo data. It clears `user_query_history`, `prediction_characteristic_values`, `predictions`, and `users`, resets runtime identity/autoincrement counters for PostgreSQL and SQLite, and preserves football domain data, odds, teams, model metadata, metrics, and ELO ratings.
+- `src/api/database/migrate_user_history_view_state.py` adds or verifies `users.last_history_viewed_at` for PostgreSQL and SQLite so existing local databases can support unread-history state.
 - `src/api/database/session.py` configures the SQLAlchemy engine, session factory, and declarative base from `DATABASE_URL`.
 - `src/api/database/models.py` stores SQLAlchemy ORM models for the physical database schema.
 - `src/api/database/init_db.py` creates all database tables for the configured SQL database.
@@ -68,11 +69,11 @@ This document gives a short engineering overview of the current project artifact
 - `android_app/` contains the Android tablet MVP application.
 - The app is a thin client over FastAPI: it does not generate ML features, does not access the database directly, does not run trained models locally, and does not implement reconciliation locally.
 - Implemented screens: splash, login, registration, match list, match details, prediction result, profile, and prediction history.
-- The app stores JWT tokens in `SharedPreferences`, attaches them as bearer tokens through OkHttp, validates them on splash with `GET /auth/me`, and clears them on logout or `401`/`403`.
-- The match list supports league and season filters. The prediction history screen displays the latest user query per `prediction_id`, compares completed-match predictions with factual results, and hides internal database IDs from users.
+- The app stores JWT tokens in `SharedPreferences`, attaches them as bearer tokens through OkHttp, validates them on splash with `GET /auth/me`, and clears them on logout or `401`/`403`. Logout navigation resets to Login through a known start destination with `launchSingleTop`.
+- The match list supports league and season filters. The prediction history screen displays the latest user query per `prediction_id`, compares completed-match predictions with factual results, hides internal database IDs from users, loads before first render to avoid visible row insertion, scrolls to the top on open, and highlights newly viewed prediction rows for 5 seconds by `prediction_id`.
 - The UI uses Russian user-facing labels through display mapping helpers while keeping team names, league names, and country names unchanged.
 - The app remains tablet-first, with basic phone support improved for the MVP. Login and Register preserve non-password input in `AuthViewModel`, keep password values local to the Compose screen, are scrollable, and use keyboard-safe IME padding. Match Details, Prediction Result, and Profile are scrollable. Prediction Result uses one column on narrow screens and two columns on wider tablet screens. Match List tabs and filters are horizontally scrollable on narrow screens.
-- The Android UI redesign is completed for the current MVP. It uses a dark sports analytics theme with near-black backgrounds, dark cards, and lime accents. Login/Register use floating in-app notifications and show/hide password controls. Match List opens on Upcoming, caches loaded tabs in `MatchListViewModel`, refreshes stale cached tabs in the background after the client-side TTL expires, shows the active tab's last successful update time, and visually separates actual upcoming matches from seeded demo matches. Match Details uses a compact tablet layout; Prediction Result and History use dark analytics cards; Profile uses a centered dashboard-style user card.
+- The Android UI redesign is completed for the current MVP. It uses a dark sports analytics theme with near-black backgrounds, dark cards, and lime accents. Login/Register use floating in-app notifications and show/hide password controls. Match List opens on Upcoming, caches loaded tabs in `MatchListViewModel`, refreshes stale cached tabs in the background after the client-side TTL expires, shows the active tab's last successful update time, and visually separates actual upcoming matches from seeded demo matches. Match Details uses a compact tablet layout; Prediction Result and History use dark analytics cards; Profile uses a centered dashboard-style user card with a smooth unread-history badge and a fallback card for non-auth profile loading problems.
 - Full `WindowSizeClass` handling, tablet master-detail navigation, and landscape-specific layouts are not implemented yet.
 - Email verification, password reset, push notifications, team/league logos, standings, H2H, calendar, and news screens are not implemented.
 - Backend `prediction.created_at` values are stored as UTC and displayed by Android in the local timezone of the emulator or tablet.
@@ -265,6 +266,8 @@ Endpoints:
 - `POST /auth/login` returns a JWT bearer token.
 - `GET /auth/me` validates and returns the current user.
 - `GET /users/me/history` returns authenticated prediction query history.
+- `GET /users/me/history/unread-count` returns the number of distinct history prediction IDs newer than `users.last_history_viewed_at`.
+- `POST /users/me/history/mark-viewed` updates `users.last_history_viewed_at` to the latest history query timestamp, or current UTC time when the user has no history rows.
 - `POST /predict` returns a unified prediction response for sample/manual JSON input.
 - `GET /matches` returns paginated real matches from the configured SQL database with optional league, season, and date filters.
 - `GET /matches/{match_id}` returns match details with teams, result, and odds.
@@ -295,7 +298,7 @@ python src/api/database/load_elo_ratings.py
 python src/api/database/seed_demo_upcoming_matches.py
 ```
 
-The football loader uses `data/interim/matches_top5_2018_2025_clean.csv` as the source for domain data. It fills countries, leagues, seasons, teams, matches, match results, bookmakers, and odds. Odds rows store 1X2 odds plus Over/Under 2.5 goal-total odds so runtime odds features match the training feature sets. The configured SQL database also stores ELO rating history, final deployed model metadata, and main final test metrics. `POST /predict/{match_id}` generates runtime features from SQL database rows instead of training feature CSV files, persists predictions and prediction characteristic values, and reuses an existing prediction for the same `match_id` and deployed outcome `model_id`. A future retrained/deployed outcome model with a different `model_id` can create a new prediction for the same match. Authenticated requests add rows to `user_query_history`; this table stores user actions and can contain several rows for the same `prediction_id`.
+The football loader uses `data/interim/matches_top5_2018_2025_clean.csv` as the source for domain data. It fills countries, leagues, seasons, teams, matches, match results, bookmakers, and odds. Odds rows store 1X2 odds plus Over/Under 2.5 goal-total odds so runtime odds features match the training feature sets. The configured SQL database also stores ELO rating history, final deployed model metadata, and main final test metrics. `POST /predict/{match_id}` generates runtime features from SQL database rows instead of training feature CSV files, persists predictions and prediction characteristic values, and reuses an existing prediction for the same `match_id` and deployed outcome `model_id`. A future retrained/deployed outcome model with a different `model_id` can create a new prediction for the same match. Authenticated requests add rows to `user_query_history`; this table stores user actions and can contain several rows for the same `prediction_id`. `users.last_history_viewed_at` stores the user's latest viewed-history marker for unread-count calculations, and `mark-viewed` advances it after the history screen has loaded.
 
 Development-only cleanup:
 
@@ -303,7 +306,9 @@ Development-only cleanup:
 python src/api/database/clear_runtime_data.py
 ```
 
-This script clears `users`, `user_query_history`, `predictions`, and `prediction_characteristic_values` while preserving football domain data, model metadata, metrics, odds, and ELO ratings.
+This script clears only runtime tables in dependency-safe order: `user_query_history`, `prediction_characteristic_values`, `predictions`, and `users`. It preserves football domain tables and reference/model data, including `matches`, `odds`, `teams`, `models`, `model_metrics`, and `team_elo_ratings`.
+
+Runtime IDs are reset after cleanup. PostgreSQL uses `TRUNCATE ... RESTART IDENTITY` for the runtime tables. SQLite deletes runtime rows and clears `sqlite_sequence` entries for the runtime tables that own autoincrement IDs: `user_query_history`, `predictions`, and `users`. `prediction_characteristic_values` has a composite primary key and no standalone autoincrement ID. A quick manual check is to run the script, register a new user, and confirm that the new `users.id` starts from `1`; then create a new prediction and confirm that the new `predictions.id` starts from `1`.
 
 ## Outcome Feature Sets
 

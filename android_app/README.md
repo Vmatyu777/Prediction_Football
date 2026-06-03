@@ -10,12 +10,12 @@ The Android application is a thin client. It must not train models, generate ML 
 - prediction: `POST /predict/{match_id}`;
 - stored prediction details: `GET /predictions/{prediction_id}`;
 - auth: `POST /auth/register`, `POST /auth/login`, `GET /auth/me`;
-- authenticated history: `GET /users/me/history`;
+- authenticated history: `GET /users/me/history`, `GET /users/me/history/unread-count`, `POST /users/me/history/mark-viewed`;
 - metadata and diagnostics: `GET /models`, `GET /health`, `GET /db/health`.
 
 Repeated prediction requests are deduplicated by the backend for the same `match_id` and deployed outcome `model_id`. Android can safely call `POST /predict/{match_id}` again without creating duplicate prediction characteristic rows for the same deployed model.
 
-Authenticated prediction requests add rows to `user_query_history`. This table stores user actions, so repeated requests can create multiple rows for the same stored prediction. The Android history screen sorts by `query_date` descending and shows only the latest row per `prediction_id`.
+Authenticated prediction requests add rows to `user_query_history`. This table stores user actions, so repeated requests can create multiple rows for the same stored prediction. The backend stores the user's history marker in `users.last_history_viewed_at`; `GET /users/me/history/unread-count` counts distinct prediction IDs newer than that marker, and `POST /users/me/history/mark-viewed` advances it after History has loaded. The Android history screen sorts by `query_date` descending and shows only the latest row per `prediction_id`.
 
 ## Android Studio Setup
 
@@ -84,8 +84,8 @@ Screen goals:
 - Match List: Recent/Upcoming/Best Predictions switch plus league and season filters with `All`; the screen opens on Upcoming, caches loaded tabs in `MatchListViewModel`, refreshes stale cached tabs in the background after the client-side TTL expires, and shows the last successful update time for the active tab.
 - Match Details: teams, league, date, status, result if available, latest odds, and compact tablet layout.
 - Prediction Result: final reconciled prediction from `POST /predict/{match_id}` in a dark analytics dashboard style.
-- Profile: current user details in a dashboard-style card, prediction history link, and logout.
-- History: latest visible row per `prediction_id`, prediction characteristics, and comparison with factual result when the match is finished.
+- Profile: current user details in a dashboard-style card, smooth unread-history badge on the History action, stable fallback for non-auth profile loading problems, and logout.
+- History: latest visible row per `prediction_id`, prepared loading before first render, scroll-to-top on open, temporary highlight for newly viewed prediction rows, prediction characteristics, and comparison with factual result when the match is finished.
 
 For tablet layout, prefer a list-detail layout on wide screens:
 
@@ -101,9 +101,10 @@ The Android app remains tablet-first. Basic phone support has been improved with
 - Login and Register preserve non-password input in `AuthViewModel`; password values stay local to the Compose screen and are not stored in the ViewModel.
 - Login and Register are vertically scrollable, use IME padding so the keyboard does not hide form controls, and show floating in-app notifications instead of system Toasts.
 - Match Details, Prediction Result, and Profile are vertically scrollable where needed to avoid clipped content on phones and landscape-sized heights.
-- Match Details has a more compact tablet layout; Prediction Result and History use dark sports analytics cards; Profile uses a centered dashboard-style user card.
+- Match Details has a more compact tablet layout; Prediction Result and History use dark sports analytics cards; Profile uses a centered dashboard-style user card with an unread-history badge.
 - Prediction Result uses one column for prediction metric cards on narrow screens and keeps two columns on wider tablet screens.
 - Match List tabs and filters are horizontally scrollable on narrow screens.
+- History is loaded before the list is shown to avoid visually inserting a new top row after the screen is already visible. New rows are highlighted by `prediction_id` for 5 seconds with a background/border animation; scrolling does not clear highlight state.
 - Actual upcoming matches and seeded demo matches are visually separated. Demo matches use a compact `Демо` badge.
 
 Full adaptive behavior is not implemented yet. The app does not use `WindowSizeClass`, tablet master-detail navigation, or landscape-specific layouts. These remain post-MVP improvements.
@@ -125,6 +126,12 @@ interface PredictionApiService {
 
     @GET("users/me/history")
     suspend fun history(): List<PredictionHistoryDto>
+
+    @GET("users/me/history/unread-count")
+    suspend fun historyUnreadCount(): PredictionHistoryUnreadCountDto
+
+    @POST("users/me/history/mark-viewed")
+    suspend fun markHistoryViewed(): PredictionHistoryViewedDto
 
     @GET("matches/upcoming")
     suspend fun getUpcomingMatches(...): List<MatchSummaryDto>
@@ -155,7 +162,8 @@ Auth token flow:
 - Retrofit/OkHttp adds `Authorization: Bearer <token>` outside composables;
 - Splash validates the token through `/auth/me`;
 - `401` or `403` clears the token and returns the user to login;
-- logout clears the token and resets the navigation stack.
+- logout clears the token and resets the navigation stack through a known start destination with `launchSingleTop`;
+- profile fallback is shown only for non-auth profile loading problems; logout and session-expired flows navigate to Login without showing the fallback card.
 
 Credential validation is duplicated client-side for UX and enforced server-side:
 

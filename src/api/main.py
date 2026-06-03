@@ -20,6 +20,8 @@ from src.api.schemas import (
     ModelSummary,
     PredictionDetailResponse,
     PredictionHistoryResponse,
+    PredictionHistoryUnreadCountResponse,
+    PredictionHistoryViewedResponse,
     PredictionRequest,
     PredictionResponse,
     PredictionStoredResponse,
@@ -46,7 +48,9 @@ from src.api.services.prediction_service import (
     build_and_store_prediction_for_match,
     build_prediction,
     get_stored_prediction,
+    get_user_history_unread_count,
     get_user_prediction_history,
+    mark_user_history_viewed,
 )
 from src.api.services.scheduler_service import get_scheduler_health, shutdown_scheduler, start_scheduler
 from src.api.database.models import User
@@ -124,6 +128,22 @@ def auth_me(current_user: User = Depends(get_current_user)) -> AuthUserResponse:
 def user_history(current_user: User = Depends(get_current_user)) -> list[PredictionHistoryResponse]:
     with SessionLocal() as db:
         return get_user_prediction_history(db, current_user.id)
+
+
+@app.get("/users/me/history/unread-count", response_model=PredictionHistoryUnreadCountResponse)
+def user_history_unread_count(
+    current_user: User = Depends(get_current_user),
+) -> PredictionHistoryUnreadCountResponse:
+    with SessionLocal() as db:
+        return get_user_history_unread_count(db, current_user.id)
+
+
+@app.post("/users/me/history/mark-viewed", response_model=PredictionHistoryViewedResponse)
+def user_history_mark_viewed(
+    current_user: User = Depends(get_current_user),
+) -> PredictionHistoryViewedResponse:
+    with SessionLocal() as db:
+        return mark_user_history_viewed(db, current_user.id)
 
 
 @app.get("/matches", response_model=list[MatchSummaryResponse])

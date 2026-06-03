@@ -211,3 +211,11 @@ class PredictionHistoryResponse(BaseModel):
     yellow_cards_over35: str | None
     exact_score: str | None
     result: MatchResultResponse | None
+
+
+class PredictionHistoryUnreadCountResponse(BaseModel):
+    new_predictions_count: int
+
+
+class PredictionHistoryViewedResponse(BaseModel):
+    last_history_viewed_at: datetime

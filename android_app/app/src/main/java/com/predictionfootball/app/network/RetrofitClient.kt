@@ -29,6 +29,8 @@ object RetrofitClient {
                 val requestPath = originalRequest.url.encodedPath.trimStart('/')
                 val shouldAttachToken = requestPath == "auth/me" ||
                     requestPath == "users/me/history" ||
+                    requestPath == "users/me/history/unread-count" ||
+                    requestPath == "users/me/history/mark-viewed" ||
                     requestPath.matches(Regex("^predict/\\d+$"))
                 val request = if (token != null && shouldAttachToken) {
                     originalRequest

@@ -1,5 +1,12 @@
 package com.predictionfootball.app.ui.screens
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -63,7 +70,12 @@ fun ProfileRoute(
         state = state,
         onBack = onBack,
         onRetry = { viewModel.loadProfile(onSessionExpired) },
-        onHistoryClick = onHistoryClick,
+        onHistoryClick = {
+            viewModel.openHistoryWithFreshUnreadCount(
+                onReady = onHistoryClick,
+                onSessionExpired = onSessionExpired,
+            )
+        },
         onLogout = {
             viewModel.logout()
             onLogout()
@@ -108,10 +120,50 @@ fun ProfileScreen(
                 onBack = onBack,
                 onHistoryClick = onHistoryClick,
             )
+            state.showProfileFallback -> ProfileFallbackContent(onBack = onBack, onRetry = onRetry)
+            else -> Unit
         }
     }
 }
 
+@Composable
+private fun ProfileFallbackContent(
+    onBack: () -> Unit,
+    onRetry: () -> Unit,
+) {
+    Box(
+        modifier = Modifier.fillMaxWidth(),
+        contentAlignment = androidx.compose.ui.Alignment.TopCenter,
+    ) {
+        InfoCard(modifier = Modifier.widthIn(max = 540.dp).fillMaxWidth()) {
+            Text(
+                text = "Профиль не загружен",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+                fontWeight = FontWeight.Bold,
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "Не удалось получить данные пользователя",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                PrimaryActionButton(
+                    text = "Обновить",
+                    onClick = onRetry,
+                    modifier = Modifier.weight(1f),
+                )
+                SecondaryActionButton(
+                    text = "К матчам",
+                    onClick = onBack,
+                    modifier = Modifier.weight(1f),
+                )
+            }
+        }
+    }
+}
 @Composable
 private fun ProfileContent(
     state: ProfileState,
@@ -180,8 +232,8 @@ private fun ProfileContent(
                         modifier = Modifier.widthIn(max = 360.dp).fillMaxWidth(),
                         verticalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
-                        PrimaryActionButton(
-                            text = "История",
+                        HistoryActionButton(
+                            newPredictionsCount = state.newPredictionsCount,
                             onClick = onHistoryClick,
                             modifier = Modifier.fillMaxWidth(),
                         )
@@ -196,8 +248,8 @@ private fun ProfileContent(
                         modifier = Modifier.widthIn(max = 640.dp).fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(14.dp),
                     ) {
-                        PrimaryActionButton(
-                            text = "История",
+                        HistoryActionButton(
+                            newPredictionsCount = state.newPredictionsCount,
                             onClick = onHistoryClick,
                             modifier = Modifier.weight(1f),
                         )
@@ -209,6 +261,34 @@ private fun ProfileContent(
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun HistoryActionButton(
+    newPredictionsCount: Int,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Box(modifier = modifier.animateContentSize()) {
+        PrimaryActionButton(
+            text = "История",
+            onClick = onClick,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        AnimatedVisibility(
+            visible = newPredictionsCount > 0,
+            modifier = Modifier
+                .align(androidx.compose.ui.Alignment.CenterEnd)
+                .padding(end = 12.dp),
+            enter = fadeIn() + scaleIn(animationSpec = spring(), initialScale = 0.85f),
+            exit = fadeOut() + scaleOut(targetScale = 0.85f),
+        ) {
+            StatusBadge(
+                text = newPredictionsCount.coerceAtMost(99).toString(),
+                accent = MaterialTheme.colorScheme.onPrimary,
+            )
         }
     }
 }

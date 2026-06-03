@@ -46,6 +46,9 @@ data class ProfileState(
     val user: AuthUserDto? = null,
     val history: List<PredictionHistoryDto> = emptyList(),
     val hasLoadedHistory: Boolean = false,
+    val newPredictionsCount: Int = 0,
+    val newHistoryHighlightIds: Set<Long> = emptySet(),
+    val showProfileFallback: Boolean = false,
     val historyLoading: Boolean = false,
     val isLoading: Boolean = false,
     val errorMessage: String? = null,
@@ -155,16 +158,37 @@ class AuthViewModel : ViewModel() {
     }
 
     fun loadProfile(onSessionExpired: () -> Unit = {}) {
-        _profileState.value = _profileState.value.copy(isLoading = true, errorMessage = null)
+        _profileState.value = _profileState.value.copy(
+            isLoading = true,
+            showProfileFallback = false,
+            errorMessage = null,
+        )
         viewModelScope.launch {
             runCatching {
                 repository.me()
             }.onSuccess { user ->
+                if (!user.hasRequiredProfileFields()) {
+                    _profileState.value = _profileState.value.copy(
+                        user = null,
+                        isLoading = false,
+                        showProfileFallback = true,
+                        errorMessage = null,
+                    )
+                    return@onSuccess
+                }
                 _profileState.value = _profileState.value.copy(
                     user = user,
                     isLoading = false,
+                    showProfileFallback = false,
                     errorMessage = null,
                 )
+                runCatching {
+                    repository.historyUnreadCount().newPredictionsCount
+                }.onSuccess { unreadCount ->
+                    _profileState.value = _profileState.value.copy(
+                        newPredictionsCount = unreadCount,
+                    )
+                }
             }.onFailure { error ->
                 if (error.isAuthorizationFailure()) {
                     expireSession()
@@ -172,43 +196,65 @@ class AuthViewModel : ViewModel() {
                 } else {
                     _profileState.value = _profileState.value.copy(
                         isLoading = false,
-                        errorMessage = error.message ?: "Не удалось загрузить профиль",
+                        showProfileFallback = true,
+                        errorMessage = null,
                     )
                 }
             }
         }
     }
 
+    fun openHistoryWithFreshUnreadCount(
+        onReady: () -> Unit,
+        onSessionExpired: () -> Unit = {},
+    ) {
+        viewModelScope.launch {
+            runCatching {
+                repository.historyUnreadCount().newPredictionsCount
+            }.onSuccess { unreadCount ->
+                _profileState.value = _profileState.value.copy(newPredictionsCount = unreadCount)
+                onReady()
+            }.onFailure { error ->
+                if (error.isAuthorizationFailure()) {
+                    expireSession()
+                    onSessionExpired()
+                } else {
+                    onReady()
+                }
+            }
+        }
+    }
+
     fun loadHistory(onSessionExpired: () -> Unit = {}) {
-        val showInitialLoading = !_profileState.value.hasLoadedHistory
+        val highlightCount = _profileState.value.newPredictionsCount
         _profileState.value = _profileState.value.copy(
-            historyLoading = false,
+            historyLoading = true,
             errorMessage = null,
         )
         viewModelScope.launch {
-            var historyLoadingShownAt: Long? = null
-            val loadingJob = if (showInitialLoading) {
-                launch {
-                    delay(HISTORY_INITIAL_LOADING_MIN_MILLIS)
-                    historyLoadingShownAt = System.currentTimeMillis()
-                    _profileState.value = _profileState.value.copy(historyLoading = true)
-                }
-            } else {
-                null
-            }
             val result = runCatching {
                 repository.history()
             }
-            loadingJob?.cancel()
-            waitForInitialHistoryLoading(historyLoadingShownAt)
 
             result.onSuccess { history ->
+                val highlightIds = history
+                    .sortedByDescending { it.queryDate }
+                    .distinctBy { it.predictionId }
+                    .take(highlightCount.coerceAtLeast(0))
+                    .map { it.predictionId }
+                    .toSet()
                 _profileState.value = _profileState.value.copy(
                     history = history,
                     hasLoadedHistory = true,
+                    newHistoryHighlightIds = highlightIds,
                     historyLoading = false,
                     errorMessage = null,
                 )
+                runCatching {
+                    repository.markHistoryViewed()
+                }.onSuccess {
+                    _profileState.value = _profileState.value.copy(newPredictionsCount = 0)
+                }
             }.onFailure { error ->
                 if (error.isAuthorizationFailure()) {
                     expireSession()
@@ -227,9 +273,14 @@ class AuthViewModel : ViewModel() {
         _profileState.value = _profileState.value.copy(
             history = emptyList(),
             hasLoadedHistory = false,
+            newHistoryHighlightIds = emptySet(),
             historyLoading = false,
             errorMessage = null,
         )
+    }
+
+    fun clearNewHistoryHighlights() {
+        _profileState.value = _profileState.value.copy(newHistoryHighlightIds = emptySet())
     }
 
     fun logout() {
@@ -258,6 +309,10 @@ class AuthViewModel : ViewModel() {
 
     private fun Throwable.isAuthorizationFailure(): Boolean {
         return this is HttpException && (code() == 401 || code() == 403)
+    }
+
+    private fun AuthUserDto.hasRequiredProfileFields(): Boolean {
+        return id > 0 && username.isNotBlank() && email.isNotBlank()
     }
 
     private fun validateRegistration(username: String, email: String, password: String): String? {

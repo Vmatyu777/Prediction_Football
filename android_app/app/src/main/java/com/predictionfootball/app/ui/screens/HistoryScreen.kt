@@ -1,5 +1,7 @@
 package com.predictionfootball.app.ui.screens
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -21,6 +23,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.font.FontWeight
@@ -41,6 +46,7 @@ import com.predictionfootball.app.ui.formatBackendUtcDateTime
 import com.predictionfootball.app.ui.theme.PredictionFootballTheme
 import com.predictionfootball.app.viewmodel.AuthViewModel
 import com.predictionfootball.app.viewmodel.ProfileState
+import kotlinx.coroutines.delay
 
 @Composable
 fun HistoryRoute(
@@ -58,6 +64,7 @@ fun HistoryRoute(
         state = state,
         onBack = onBack,
         onRetry = { viewModel.loadHistory(onSessionExpired) },
+        onNewHighlightsViewed = viewModel::clearNewHistoryHighlights,
     )
 }
 
@@ -66,10 +73,9 @@ fun HistoryScreen(
     state: ProfileState,
     onBack: () -> Unit,
     onRetry: () -> Unit,
+    onNewHighlightsViewed: () -> Unit,
 ) {
-    val isInitialHistoryLoading = state.historyLoading &&
-        state.history.isEmpty() &&
-        state.errorMessage == null
+    val isHistoryLoading = state.historyLoading && state.errorMessage == null
     val isInitialHistoryPending = !state.hasLoadedHistory &&
         state.history.isEmpty() &&
         state.errorMessage == null
@@ -82,27 +88,42 @@ fun HistoryScreen(
         },
     ) {
         when {
-            isInitialHistoryLoading -> LoadingContent("Загрузка истории")
+            isHistoryLoading -> LoadingContent("Загрузка истории")
             isInitialHistoryPending -> Unit
             state.errorMessage != null && state.history.isEmpty() -> ErrorContent(
                 message = state.errorMessage,
                 onRetry = onRetry,
             )
-            else -> HistoryList(history = state.history)
+            else -> HistoryList(
+                history = state.history,
+                highlightedPredictionIds = state.newHistoryHighlightIds,
+                onNewHighlightsViewed = onNewHighlightsViewed,
+            )
         }
     }
 }
 
 @Composable
-private fun HistoryList(history: List<PredictionHistoryDto>) {
+private fun HistoryList(
+    history: List<PredictionHistoryDto>,
+    highlightedPredictionIds: Set<Long>,
+    onNewHighlightsViewed: () -> Unit,
+) {
     val latestUniqueHistory = history
         .sortedByDescending { it.queryDate }
         .distinctBy { it.predictionId }
     val listState = rememberLazyListState()
 
-    LaunchedEffect(latestUniqueHistory.size, latestUniqueHistory.firstOrNull()?.predictionId) {
+    LaunchedEffect(latestUniqueHistory.firstOrNull()?.predictionId) {
         if (latestUniqueHistory.isNotEmpty()) {
             listState.scrollToItem(0)
+        }
+    }
+
+    LaunchedEffect(highlightedPredictionIds) {
+        if (highlightedPredictionIds.isNotEmpty()) {
+            delay(5000)
+            onNewHighlightsViewed()
         }
     }
 
@@ -118,14 +139,61 @@ private fun HistoryList(history: List<PredictionHistoryDto>) {
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         items(latestUniqueHistory, key = { it.predictionId }) { historyItem ->
-            HistoryCard(historyItem)
+            HistoryCard(
+                item = historyItem,
+                isNew = historyItem.predictionId in highlightedPredictionIds,
+            )
         }
     }
 }
 
 @Composable
-private fun HistoryCard(item: PredictionHistoryDto) {
-    InfoCard(modifier = Modifier.fillMaxWidth()) {
+private fun HistoryCard(item: PredictionHistoryDto, isNew: Boolean) {
+    var highlightVisible by remember(item.predictionId) { mutableStateOf(false) }
+    LaunchedEffect(isNew) {
+        if (isNew) {
+            highlightVisible = false
+            delay(60)
+            highlightVisible = true
+        } else {
+            highlightVisible = false
+        }
+    }
+    val highlightColor by animateColorAsState(
+        targetValue = if (highlightVisible) {
+            MaterialTheme.colorScheme.primary.copy(alpha = 0.28f)
+        } else {
+            MaterialTheme.colorScheme.surface.copy(alpha = 0f)
+        },
+        animationSpec = tween(durationMillis = 450),
+        label = "historyNewRowHighlight",
+    )
+    val highlightBorderColor by animateColorAsState(
+        targetValue = if (highlightVisible) {
+            MaterialTheme.colorScheme.primary.copy(alpha = 0.72f)
+        } else {
+            MaterialTheme.colorScheme.surface.copy(alpha = 0f)
+        },
+        animationSpec = tween(durationMillis = 450),
+        label = "historyNewRowBorder",
+    )
+
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        color = highlightColor,
+        border = BorderStroke(2.dp, highlightBorderColor),
+    ) {
+        HistoryCardContent(
+            item = item,
+            modifier = Modifier.padding(3.dp),
+        )
+    }
+}
+
+@Composable
+private fun HistoryCardContent(item: PredictionHistoryDto, modifier: Modifier = Modifier) {
+    InfoCard(modifier = modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -373,9 +441,11 @@ private fun HistoryScreenPreview() {
                         ),
                     ),
                 ),
+                newHistoryHighlightIds = setOf(10),
             ),
             onBack = {},
             onRetry = {},
+            onNewHighlightsViewed = {},
         )
     }
 }

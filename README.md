@@ -423,6 +423,8 @@ Available endpoints:
 - `POST /auth/login`;
 - `GET /auth/me`;
 - `GET /users/me/history`;
+- `GET /users/me/history/unread-count`;
+- `POST /users/me/history/mark-viewed`;
 - `GET /matches`;
 - `GET /matches/{match_id}`;
 - `GET /matches/upcoming`;
@@ -520,6 +522,8 @@ Authentication uses short-lived MVP JWT bearer tokens:
 - Android stores the token in `SharedPreferences` and sends `Authorization: Bearer <token>` through an OkHttp interceptor.
 - `GET /auth/me` validates the current token for Splash/profile startup.
 - `GET /users/me/history` returns the authenticated user's prediction query history.
+- `GET /users/me/history/unread-count` returns the number of distinct predictions queried after `users.last_history_viewed_at`.
+- `POST /users/me/history/mark-viewed` updates `users.last_history_viewed_at` to the latest history `query_date`, or the current UTC time when the user has no history rows.
 
 Credential validation rules:
 
@@ -542,7 +546,7 @@ It is a thin Kotlin + Jetpack Compose client for the FastAPI backend:
 - it does not run trained models locally;
 - it calls FastAPI endpoints through Retrofit.
 
-The Android app remains tablet-first, with basic phone support improved for the MVP. The completed UI redesign uses a dark football analytics style with near-black backgrounds, dark cards, and lime accents for primary actions, statuses, prediction highlights, and progress bars. Login and registration forms preserve non-password input through the auth ViewModel, keep password input local to the Compose screen, are vertically scrollable, use IME padding for keyboard-safe interaction, show floating in-app notifications instead of system Toasts, and include show/hide password controls. Match Details, Prediction Result, and Profile are vertically scrollable where needed. Prediction Result uses one column for prediction metric cards on narrow screens and two columns on wider tablet screens. Match List tabs and filters are horizontally scrollable on narrow screens. Full `WindowSizeClass` support, tablet master-detail navigation, and landscape-specific layouts are not implemented yet.
+The Android app remains tablet-first, with basic phone support improved for the MVP. The completed UI redesign uses a dark football analytics style with near-black backgrounds, dark cards, and lime accents for primary actions, statuses, prediction highlights, and progress bars. Login and registration forms preserve non-password input through the auth ViewModel, keep password input local to the Compose screen, are vertically scrollable, use IME padding for keyboard-safe interaction, show floating in-app notifications instead of system Toasts, and include show/hide password controls. Match Details, Prediction Result, and Profile are vertically scrollable where needed. Profile shows a smooth unread-history badge on the History action when `newPredictionsCount > 0`; History prepares the loaded list before rendering, scrolls to the top on open, and highlights newly viewed prediction rows by `prediction_id` with a temporary background/border animation. Prediction Result uses one column for prediction metric cards on narrow screens and two columns on wider tablet screens. Match List tabs and filters are horizontally scrollable on narrow screens. Full `WindowSizeClass` support, tablet master-detail navigation, and landscape-specific layouts are not implemented yet.
 
 Implemented screens:
 
@@ -555,9 +559,9 @@ Implemented screens:
 - profile;
 - prediction history.
 
-The match list opens on the Upcoming tab by default, includes league and season filters with an `All` option, caches tab data inside `MatchListViewModel`, and refreshes stale cached tab data in the background after the client-side TTL expires. The UI shows the last successful update time for the active tab without adding a manual refresh action. Actual future matches and demo matches are visually separated so seeded demo fixtures do not mix with API-loaded upcoming matches. The history screen shows unique predictions without visual duplicates: rows are sorted by `query_date` descending and then grouped by `prediction_id`, so the latest user action is shown for each stored prediction. For completed matches, Android compares prediction characteristics with the factual result.
+The match list opens on the Upcoming tab by default, includes league and season filters with an `All` option, caches tab data inside `MatchListViewModel`, and refreshes stale cached tab data in the background after the client-side TTL expires. The UI shows the last successful update time for the active tab without adding a manual refresh action. Actual future matches and demo matches are visually separated so seeded demo fixtures do not mix with API-loaded upcoming matches. The history screen shows unique predictions without visual duplicates: rows are sorted by `query_date` descending and then grouped by `prediction_id`, so the latest user action is shown for each stored prediction. Before opening History, Profile refreshes the unread count; after History loads successfully, Android calls `POST /users/me/history/mark-viewed`, resets the badge count, and keeps highlight IDs only long enough for the visible 5-second row highlight. For completed matches, Android compares prediction characteristics with the factual result.
 
-The Android UI redesign also polished Match Details into a compact tablet layout, Prediction Result into a dark analytics dashboard, History into readable market cards with Russian statuses, and Profile into a centered dashboard-style user card. The redesign did not change backend endpoints, API schemas, ML models, database schema, or prediction business logic.
+The Android UI redesign also polished Match Details into a compact tablet layout, Prediction Result into a dark analytics dashboard, History into readable market cards with Russian statuses, and Profile into a centered dashboard-style user card. Logout navigation resets to Login through a known start destination with `launchSingleTop` to avoid empty protected routes. Profile also has a stable fallback card for non-auth profile loading problems, such as a malformed or unavailable `/auth/me` response; logout and session-expired flows do not show this fallback. The redesign did not change ML models or prediction business logic.
 
 The Android UI maps technical backend values such as `H / D / A`, `Yes / No`, match statuses, and bookmaker/source names to Russian user-facing labels. Match outcome probabilities are shown with full labels (`Home win`, `Draw`, `Away win` equivalents in Russian), not short betting notation. Historical match sources are not shown in the UI; demo and API sources are shown as user-facing labels. Team names, league names, and country names are kept as returned by the backend.
 
@@ -662,7 +666,7 @@ The unique external identity is `(external_source_id, external_match_id)`. `exte
 
 `POST /predict/{match_id}` builds model feature vectors from SQL match, odds, ELO, and rolling match history, calls the existing final models, applies the reconciliation layer, stores the prediction, and returns the final user-facing JSON. Repeated calls for the same match and deployed outcome model reuse the stored prediction instead of creating duplicates.
 
-When the request includes a valid bearer token, the backend stores a `user_query_history` row. This table is an action log: repeated user requests can create multiple history rows for the same `prediction_id`, while Android displays only the latest row per prediction to avoid visual duplicates.
+When the request includes a valid bearer token, the backend stores a `user_query_history` row. This table is an action log: repeated user requests can create multiple history rows for the same `prediction_id`, while Android displays only the latest row per prediction to avoid visual duplicates. The `users.last_history_viewed_at` field stores the latest viewed-history marker for unread-history calculations. `GET /users/me/history/unread-count` counts distinct prediction IDs with `query_date` newer than this marker, and `POST /users/me/history/mark-viewed` advances the marker after the history screen has loaded.
 
 Development-only runtime cleanup:
 
@@ -670,6 +674,8 @@ Development-only runtime cleanup:
 python src/api/database/clear_runtime_data.py
 ```
 
-This script clears only runtime/demo tables: `users`, `user_query_history`, `predictions`, and `prediction_characteristic_values`. It does not delete football domain data, odds, teams, leagues, seasons, model metadata, model metrics, or ELO ratings.
+This script clears only runtime/demo tables in dependency-safe order: `user_query_history`, `prediction_characteristic_values`, `predictions`, and `users`. It does not delete football domain data, odds, teams, leagues, seasons, model metadata, model metrics, or ELO ratings.
+
+The cleanup also resets runtime ID counters. PostgreSQL uses `TRUNCATE ... RESTART IDENTITY` for the runtime tables. SQLite deletes runtime rows and clears `sqlite_sequence` for runtime tables with standalone autoincrement IDs: `user_query_history`, `predictions`, and `users`. `prediction_characteristic_values` uses a composite primary key and has no separate autoincrement ID. To verify the reset manually, run the script, register a new user, and confirm that the new `users.id` starts from `1`; then create a prediction and confirm that the new `predictions.id` starts from `1`.
 
 Runtime feature generation for `POST /predict/{match_id}` lives in `src/api/services/feature_service.py`. It uses the configured SQL database as the runtime source and builds the same deployed feature sets used by the final models: `v1_only`, `v1_score_related`, and `v1_yellow_related`. The service follows the training feature names and ordering from `src/features/feature_registry.py`, reuses the same ELO, odds transform, and rolling-history formulas, computes implied 1X2 and Over/Under 2.5 probabilities from stored odds, and reports debug checks for feature count, missing values, NaN values, and ordering.

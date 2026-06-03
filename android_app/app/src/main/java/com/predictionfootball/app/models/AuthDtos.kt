@@ -33,6 +33,16 @@ data class AuthTokenDto(
 )
 
 @Serializable
+data class PredictionHistoryUnreadCountDto(
+    @SerialName("new_predictions_count") val newPredictionsCount: Int,
+)
+
+@Serializable
+data class PredictionHistoryViewedDto(
+    @SerialName("last_history_viewed_at") val lastHistoryViewedAt: String,
+)
+
+@Serializable
 data class PredictionHistoryDto(
     val id: Long,
     @SerialName("query_date") val queryDate: String,
