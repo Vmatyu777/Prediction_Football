@@ -33,6 +33,11 @@ backups/
 *.cbm
 *.onnx
 
+# Local Russian diploma/report figures
+reports/figures/diploma/
+reports/figures/outcome/slide07_outcome_macro_f1_comparison_ru.*
+reports/figures/slide_analogs_comparison_ru.png
+
 # Notebooks runtime state
 .ipynb_checkpoints/
 
