@@ -1,0 +1,55 @@
+{% extends "sqladmin/base.html" %}
+{% block body %}
+<div class="d-flex align-items-center justify-content-center vh-100">
+  <form class="col-lg-4 col-md-6 card card-md" action="{{ url_for('admin:login') }}" method="POST" autocomplete="off">
+    <div class="card-body">
+      <h2 class="card-title text-center mb-4">Вход в административную панель</h2>
+      <div class="mb-3">
+        <label class="form-label">Логин или почта</label>
+        {% if error %}
+        <input name="username" type="text" class="form-control is-invalid" placeholder="Введите логин или почту"
+          autocomplete="off">
+        <div class="invalid-feedback">Неверный логин или пароль</div>
+        {% else %}
+        <input name="username" type="text" class="form-control" placeholder="Введите логин или почту" autocomplete="off">
+        {% endif %}
+      </div>
+      <div class="mb-2">
+        <label class="form-label">Пароль</label>
+        <div class="input-group input-group-flat">
+          {% if error %}
+          <input id="admin-password" name="password" type="password" class="form-control is-invalid"
+            placeholder="Введите пароль" autocomplete="off">
+          <button id="toggle-admin-password" class="btn" type="button" aria-pressed="false">Показать</button>
+          <div class="invalid-feedback">Неверный логин или пароль</div>
+          {% else %}
+          <input id="admin-password" name="password" type="password" class="form-control" placeholder="Введите пароль"
+            autocomplete="off">
+          <button id="toggle-admin-password" class="btn" type="button" aria-pressed="false">Показать</button>
+          {% endif %}
+        </div>
+      </div>
+      <div class="form-footer">
+        <button type="submit" class="btn btn-primary w-100">Войти</button>
+      </div>
+    </div>
+  </form>
+</div>
+
+<script>
+  (function () {
+    const passwordInput = document.getElementById("admin-password");
+    const toggleButton = document.getElementById("toggle-admin-password");
+    if (!passwordInput || !toggleButton) {
+      return;
+    }
+
+    toggleButton.addEventListener("click", function () {
+      const isHidden = passwordInput.type === "password";
+      passwordInput.type = isHidden ? "text" : "password";
+      toggleButton.textContent = isHidden ? "Скрыть" : "Показать";
+      toggleButton.setAttribute("aria-pressed", String(isHidden));
+    });
+  })();
+</script>
+{% endblock %}

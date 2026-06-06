@@ -159,7 +159,13 @@ Current design decision: exact score must not drive the final system because it 
 - Scheduler windows are intentionally small to reduce API usage and respect free-tier limits. `API_FOOTBALL_MAX_SYNC_FIXTURES` defaults to `25`, so worst-case daily usage is about 80 requests.
 - `API_FOOTBALL_SEASON=2026` is the target app season, but API-FOOTBALL free plans may not expose that season yet; use an available season for local API checks if needed.
 - Scheduler health is exposed through `GET /scheduler/health`; existing `/health` and `/db/health` schemas must remain unchanged.
-- Admin panel, admin-triggered sync, sync logs, and monthly retraining automation are future work.
+- SQLAdmin administration panel is mounted at `/admin` through `src/api/admin/`. It uses separate session-based admin authentication and must not change or replace the Android JWT auth flow.
+- Admin panel access is restricted to users with the `admin` role. Public registration must continue to create regular users only; the first admin is created by promoting an existing trusted user through a controlled database/admin process.
+- SQLAdmin Users view must never display `password_hash`. Users may be viewed, searched, filtered, and have only their role edited.
+- User deletion is not allowed in SQLAdmin.
+- SQLAdmin must not allow dangerous CRUD for predictions, user query history, matches, football domain data, model metadata, metrics, odds, or reference tables unless explicitly requested and carefully reviewed.
+- SQLAdmin must not allow an admin to demote their own role or remove the last remaining admin user.
+- Admin-triggered sync, sync logs, and monthly retraining automation are future work.
 
 ## Database Layer
 

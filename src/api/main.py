@@ -8,6 +8,7 @@ from fastapi import Depends, FastAPI, HTTPException, Query, status
 from sqlalchemy import text
 
 from src.api.config import APP_TITLE, APP_VERSION
+from src.api.admin import setup_admin
 from src.api.database.session import SessionLocal, engine
 from src.api.schemas import (
     AuthTokenResponse,
@@ -72,6 +73,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title=APP_TITLE, version=APP_VERSION, lifespan=lifespan)
+setup_admin(app)
 
 
 @app.get("/health", response_model=HealthResponse)

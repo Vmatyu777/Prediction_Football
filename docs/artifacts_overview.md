@@ -7,6 +7,7 @@ This document gives a short engineering overview of the current project artifact
 - `docs/final_app_models.md` describes the final local model package for future backend/API usage: final tasks, model types, feature sets, local model paths, thresholds, post-processing, and final test metrics.
 - `configs/final_app_models.json` stores machine-readable backend metadata for final model paths, feature-set names, thresholds, reconciliation priority order, and exact-score clipping range.
 - `src/api/` contains the FastAPI backend for the Android mobile application, including auth endpoints, match browsing, prediction, persisted prediction details, and user prediction history.
+- `src/api/admin/` contains the SQLAdmin administration panel mounted at `/admin`, including session-based admin authentication, dashboard, model views, and localized template overrides.
 - `src/api/database/` contains the SQLAlchemy physical database layer for backend persistence. PostgreSQL 16 through Docker Compose is the primary production-like mode; SQLite is retained as a local fallback when `DATABASE_URL` is not set.
 - API-FOOTBALL / API-SPORTS is the selected single external source for future fixtures, results, match statistics, and odds. Its API key is a local `.env` value and must not be committed.
 - `android_app/` contains the Android tablet MVP client. It is a Kotlin + Jetpack Compose thin client that calls FastAPI through Retrofit and does not run ML models, calculate ML features, or access any database directly.
@@ -34,6 +35,11 @@ This document gives a short engineering overview of the current project artifact
 - `src/postprocessing/consistency_layer.py` builds consistency reports and applies the final priority-based rule reconciliation layer for user-facing predictions.
 - `src/deployment/prepare_final_app_models.py` rebuilds the local final app model package from already selected trained artifacts and refreshes `configs/final_app_models.json` without retraining.
 - `src/api/main.py` creates the FastAPI app and exposes health, model metadata, match browsing, match-based prediction, and persisted prediction endpoints.
+- `src/api/admin/setup.py` attaches SQLAdmin to the FastAPI app at `/admin`, registers the dashboard and model views, and points SQLAdmin to the project-local admin templates.
+- `src/api/admin/auth.py` implements SQLAdmin session-based authentication using the existing `authenticate_user()` helper while requiring the `admin` role.
+- `src/api/admin/dashboard.py` implements the localized dashboard with user, match, prediction, and user-history counters plus lightweight CSS charts.
+- `src/api/admin/views.py` defines SQLAdmin `ModelView` classes for Users, football data, predictions, models, metrics, and reference tables. Users allow role editing only; password hashes are hidden; dangerous create/edit/delete operations are disabled for predictions, history, matches, and reference data; admin role edits are protected against self-demotion and removal of the last administrator.
+- `src/api/admin/templates/` contains localized SQLAdmin template overrides for login, layout, list, details, edit, and dashboard pages. These overrides translate user-facing admin UI text and keep SQLAdmin core files unchanged.
 - `src/api/config.py` stores backend paths and API metadata.
 - `src/api/schemas.py` stores Pydantic request and response schemas, including auth validation rules for username, email, and password.
 - `src/api/services/auth_service.py` contains password hashing, JWT token creation/validation, current-user dependencies, registration, and login helpers.
@@ -255,6 +261,33 @@ python src/api/database/restore_postgres.py backups/football_backup_YYYYMMDD_HHM
 Backup files are written to ignored local `backups/`. The scripts use `pg_dump` and `psql`; if host PostgreSQL client tools are not available, they use the Docker Compose `postgres` service, so PostgreSQL must be running.
 
 API-FOOTBALL is prepared as the single external sports data provider. External API identity is stored through `external_sources` plus nullable `matches.external_source_id`, `matches.external_match_id`, and `matches.last_synced_at` fields. The unique API identity is `(external_source_id, external_match_id)`, while historical and demo matches can keep these fields as `NULL`. Manual fixtures sync is implemented with `python src/api/database/sync_api_football.py`; manual odds sync is implemented with `python src/api/database/sync_api_football_odds.py`; manual results/statistics sync is implemented with `python src/api/database/sync_api_football_results.py`. The fixtures sync uses conservative alias-based team matching and does not create new teams automatically. The odds sync writes only complete 1X2 and Over/Under 2.5 odds sets under `Market Average`, averages complete bookmaker sets, does not create API bookmaker rows, and never creates fake odds. The results/statistics sync writes `match_results` only when score, total corners, and total yellow cards are all available. Daily scheduled sync is implemented inside the FastAPI backend through APScheduler: fixtures at `03:00` for `today -> today + 14 days`, odds at `06:00` for up to 25 fixtures in `today -> today + 7 days`, and results/statistics at `23:30` for up to 25 fixtures in `today - 2 days -> today` by default, all configurable through `.env`. These windows are intentionally small to reduce API usage and keep worst-case daily usage near 80 requests. `API_FOOTBALL_SEASON=2026` is the target app season, but API-FOOTBALL free plans may not expose that season yet; local API checks may need an available season. Scheduler health is available at `GET /scheduler/health`. Admin sync endpoints, sync logs, and monthly retraining automation are not implemented yet.
+
+## SQLAdmin Administration Panel
+
+The FastAPI backend mounts a SQLAdmin administration panel at `/admin`. It is intended for browser-based operational administration and is not used by the Android client. Android continues to authenticate through JWT bearer tokens, while `/admin` uses a separate signed session cookie through SQLAdmin's `AuthenticationBackend`.
+
+The admin package is structured as follows:
+
+- `src/api/admin/auth.py`: session login/logout/authentication for `/admin`, reusing the existing `authenticate_user()` helper and requiring the `admin` role.
+- `src/api/admin/setup.py`: SQLAdmin registration, `/admin` mount configuration, dashboard registration, and view registration.
+- `src/api/admin/dashboard.py`: operational dashboard with total users, users in the last 7 days, total matches, upcoming matches, total predictions, predictions in the last 7 days, latest predictions, and latest user query history.
+- `src/api/admin/views.py`: SQLAdmin model views, Russian labels, safe list/detail/filter/export configuration, foreign-key display helpers, read-only rules, hidden password hashes, and admin role protection.
+- `src/api/admin/templates/`: localized template overrides for login, layout, list, detail, edit, and dashboard pages. The overrides translate user-facing UI strings while leaving SQLAdmin core unchanged.
+
+The enabled views cover Users, UserRoles, Matches, MatchResults, Odds, Predictions, PredictionCharacteristicValues, UserQueryHistory, Models, ModelMetrics, Countries, Leagues, Seasons, Teams, Metrics, ModelTypes, MatchSources, ExternalSources, Bookmakers, PredictionCharacteristics, and MatchStatuses.
+
+The first administrator is created by promoting an existing trusted user in the database or through a controlled admin process; public registration creates regular users only. In the local development database, `Vova777` was promoted to `admin` for verification.
+
+Safety constraints:
+
+- `password_hash` is not displayed in the Users view.
+- Users can be viewed, searched, filtered, and have only their role edited.
+- User deletion is disabled.
+- Matches, predictions, user query history, model metadata, metrics, odds, and reference tables are read-only in the first admin-panel stage.
+- Administrators cannot demote their own role.
+- The last remaining administrator cannot be demoted.
+
+Known limitation: when a protected role update is rejected, SQLAdmin displays the Russian error message in the edit form and does not change the database, but SQLAdmin's internal edit handler still logs the caught exception traceback in backend logs.
 
 Endpoints:
 

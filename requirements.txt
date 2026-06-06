@@ -14,3 +14,5 @@ joblib==1.5.1
 PyJWT==2.10.1
 passlib[bcrypt]==1.7.4
 bcrypt==4.0.1
+sqladmin==0.21.0
+itsdangerous==2.2.0

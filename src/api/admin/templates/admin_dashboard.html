@@ -1,0 +1,197 @@
+{% extends "sqladmin/layout.html" %}
+
+{% macro max_value(rows) -%}
+  {%- set ns = namespace(value=0) -%}
+  {%- for row in rows -%}
+    {%- if row.value > ns.value -%}
+      {%- set ns.value = row.value -%}
+    {%- endif -%}
+  {%- endfor -%}
+  {{ ns.value }}
+{%- endmacro %}
+
+{% macro bar_chart(title, rows, empty_text) %}
+{% set peak = max_value(rows) | int %}
+<div class="card">
+  <div class="card-header">
+    <h3 class="card-title">{{ title }}</h3>
+  </div>
+  <div class="card-body">
+    {% if rows %}
+      <div class="pf-chart">
+        {% for row in rows %}
+          {% set percent = ((row.value / peak) * 100) if peak else 0 %}
+          <div class="pf-chart-row">
+            <div class="pf-chart-label" title="{{ row.label }}">{{ row.label }}</div>
+            <div class="pf-chart-track">
+              <div class="pf-chart-fill" style="width: {{ percent }}%"></div>
+            </div>
+            <div class="pf-chart-value">{{ row.value }}</div>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="text-muted">{{ empty_text }}</div>
+    {% endif %}
+  </div>
+</div>
+{% endmacro %}
+
+{% block content %}
+<style>
+  .pf-chart {
+    display: grid;
+    gap: 0.65rem;
+  }
+  .pf-chart-row {
+    display: grid;
+    grid-template-columns: minmax(92px, 150px) 1fr minmax(38px, auto);
+    gap: 0.75rem;
+    align-items: center;
+  }
+  .pf-chart-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--tblr-muted);
+    font-size: 0.875rem;
+  }
+  .pf-chart-track {
+    height: 0.75rem;
+    overflow: hidden;
+    border-radius: 999px;
+    background: rgba(98, 105, 118, 0.16);
+  }
+  .pf-chart-fill {
+    height: 100%;
+    min-width: 2px;
+    border-radius: 999px;
+    background: var(--tblr-primary);
+  }
+  .pf-chart-value {
+    text-align: right;
+    font-weight: 700;
+  }
+</style>
+
+<div class="container-xl">
+  <div class="page-header d-print-none">
+    <div class="row align-items-center">
+      <div class="col">
+        <h2 class="page-title">Панель управления системой прогнозирования футбольных матчей</h2>
+        <div class="text-muted mt-1">Операционная сводка по пользователям, матчам, прогнозам и истории</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row row-cards mt-3">
+    {% for card in [
+      ("Всего пользователей", total_users),
+      ("Новые пользователи за 7 дней", users_last_7_days),
+      ("Всего матчей", total_matches),
+      ("Будущие матчи", upcoming_matches),
+      ("Всего прогнозов", total_predictions),
+      ("Прогнозы за 7 дней", predictions_last_7_days)
+    ] %}
+    <div class="col-sm-6 col-lg-4">
+      <div class="card">
+        <div class="card-body">
+          <div class="text-muted">{{ card[0] }}</div>
+          <div class="h1 mb-0">{{ card[1] }}</div>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <div class="row row-cards mt-3">
+    <div class="col-lg-4">
+      {{ bar_chart("Прогнозы за последние 7 дней", prediction_chart, "Прогнозов пока нет.") }}
+    </div>
+    <div class="col-lg-4">
+      {{ bar_chart("Матчи по источникам", matches_by_source, "Матчи пока не загружены.") }}
+    </div>
+    <div class="col-lg-4">
+      {{ bar_chart("Прогнозы по моделям", predictions_by_model, "Прогнозов пока нет.") }}
+    </div>
+  </div>
+
+  <div class="row row-cards mt-3">
+    <div class="col-lg-6">
+      <div class="card">
+        <div class="card-header">
+          <h3 class="card-title">Последние прогнозы</h3>
+        </div>
+        <div class="table-responsive">
+          <table class="table card-table table-vcenter">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Матч</th>
+                <th>Исход</th>
+                <th>Создан</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for prediction in latest_predictions %}
+              <tr>
+                <td>{{ prediction.id }}</td>
+                <td>
+                  {% if prediction.match %}
+                    {{ prediction.match.home_team.name }} vs {{ prediction.match.away_team.name }}
+                  {% else %}
+                    Матч #{{ prediction.match_id }}
+                  {% endif %}
+                </td>
+                <td>{{ prediction.predicted_outcome }}</td>
+                <td>{{ prediction.created_at }}</td>
+              </tr>
+              {% else %}
+              <tr><td colspan="4" class="text-muted">Прогнозов пока нет.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-6">
+      <div class="card">
+        <div class="card-header">
+          <h3 class="card-title">Последние запросы пользователей</h3>
+        </div>
+        <div class="table-responsive">
+          <table class="table card-table table-vcenter">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Пользователь</th>
+                <th>Прогноз</th>
+                <th>Дата запроса</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in latest_history %}
+              <tr>
+                <td>{{ row.id }}</td>
+                <td>{{ row.user.username if row.user else ("Пользователь #" ~ row.user_id) }}</td>
+                <td>
+                  {% if row.prediction and row.prediction.match %}
+                    #{{ row.prediction_id }} · {{ row.prediction.match.home_team.name }} vs {{ row.prediction.match.away_team.name }}
+                  {% else %}
+                    #{{ row.prediction_id }}
+                  {% endif %}
+                </td>
+                <td>{{ row.query_date }}</td>
+              </tr>
+              {% else %}
+              <tr><td colspan="4" class="text-muted">Истории запросов пока нет.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

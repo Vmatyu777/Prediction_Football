@@ -29,6 +29,11 @@ class Country(Base):
     leagues: Mapped[list["League"]] = relationship(back_populates="country")
     teams: Mapped[list["Team"]] = relationship(back_populates="country")
 
+    def __str__(self) -> str:
+        return self.name
+
+    __repr__ = __str__
+
 
 class League(Base):
     __tablename__ = "leagues"
@@ -39,6 +44,11 @@ class League(Base):
 
     country: Mapped["Country"] = relationship(back_populates="leagues")
     seasons: Mapped[list["Season"]] = relationship(back_populates="league")
+
+    def __str__(self) -> str:
+        return self.name
+
+    __repr__ = __str__
 
 
 class Season(Base):
@@ -52,6 +62,11 @@ class Season(Base):
 
     league: Mapped["League"] = relationship(back_populates="seasons")
     matches: Mapped[list["Match"]] = relationship(back_populates="season")
+
+    def __str__(self) -> str:
+        return self.name
+
+    __repr__ = __str__
 
 
 class Team(Base):
@@ -72,6 +87,11 @@ class Team(Base):
         foreign_keys="Match.away_team_id",
     )
 
+    def __str__(self) -> str:
+        return self.name
+
+    __repr__ = __str__
+
 
 class TeamEloRating(Base):
     __tablename__ = "team_elo_ratings"
@@ -83,6 +103,13 @@ class TeamEloRating(Base):
 
     team: Mapped["Team"] = relationship(back_populates="elo_ratings")
 
+    def __str__(self) -> str:
+        team = self.__dict__.get("team")
+        team_label = str(team) if team is not None else f"team #{self.team_id}"
+        return f"{team_label} {self.rating_date}: {self.elo_value}"
+
+    __repr__ = __str__
+
 
 class MatchStatus(Base):
     __tablename__ = "match_statuses"
@@ -91,6 +118,11 @@ class MatchStatus(Base):
     name: Mapped[str] = mapped_column(String(20), nullable=False, unique=True)
 
     matches: Mapped[list["Match"]] = relationship(back_populates="status")
+
+    def __str__(self) -> str:
+        return self.name
+
+    __repr__ = __str__
 
 
 class MatchSource(Base):
@@ -101,6 +133,11 @@ class MatchSource(Base):
 
     matches: Mapped[list["Match"]] = relationship(back_populates="source")
 
+    def __str__(self) -> str:
+        return self.name
+
+    __repr__ = __str__
+
 
 class ExternalSource(Base):
     __tablename__ = "external_sources"
@@ -109,6 +146,11 @@ class ExternalSource(Base):
     name: Mapped[str] = mapped_column(String(50), nullable=False, unique=True)
 
     matches: Mapped[list["Match"]] = relationship(back_populates="external_source")
+
+    def __str__(self) -> str:
+        return self.name
+
+    __repr__ = __str__
 
 
 class Match(Base):
@@ -138,6 +180,15 @@ class Match(Base):
     odds: Mapped[list["Odds"]] = relationship(back_populates="match")
     predictions: Mapped[list["Prediction"]] = relationship(back_populates="match")
 
+    def __str__(self) -> str:
+        home_team = self.__dict__.get("home_team")
+        away_team = self.__dict__.get("away_team")
+        home_label = str(home_team) if home_team is not None else f"team #{self.home_team_id}"
+        away_label = str(away_team) if away_team is not None else f"team #{self.away_team_id}"
+        return f"{home_label} vs {away_label} ({self.match_date:%Y-%m-%d})"
+
+    __repr__ = __str__
+
 
 class MatchResult(Base):
     __tablename__ = "match_results"
@@ -153,6 +204,11 @@ class MatchResult(Base):
 
     match: Mapped["Match"] = relationship(back_populates="result")
 
+    def __str__(self) -> str:
+        return f"{self.home_goals}:{self.away_goals}"
+
+    __repr__ = __str__
+
 
 class Bookmaker(Base):
     __tablename__ = "bookmakers"
@@ -161,6 +217,11 @@ class Bookmaker(Base):
     name: Mapped[str] = mapped_column(String(20), nullable=False, unique=True)
 
     odds: Mapped[list["Odds"]] = relationship(back_populates="bookmaker")
+
+    def __str__(self) -> str:
+        return self.name
+
+    __repr__ = __str__
 
 
 class Odds(Base):
@@ -179,6 +240,13 @@ class Odds(Base):
     match: Mapped["Match"] = relationship(back_populates="odds")
     bookmaker: Mapped["Bookmaker"] = relationship(back_populates="odds")
 
+    def __str__(self) -> str:
+        bookmaker = self.__dict__.get("bookmaker")
+        bookmaker_label = str(bookmaker) if bookmaker is not None else f"bookmaker #{self.bookmaker_id}"
+        return f"{bookmaker_label} odds for match #{self.match_id}"
+
+    __repr__ = __str__
+
 
 class ModelType(Base):
     __tablename__ = "model_types"
@@ -187,6 +255,11 @@ class ModelType(Base):
     name: Mapped[str] = mapped_column(String(20), nullable=False, unique=True)
 
     models: Mapped[list["Model"]] = relationship(back_populates="model_type")
+
+    def __str__(self) -> str:
+        return self.name
+
+    __repr__ = __str__
 
 
 class Model(Base):
@@ -203,6 +276,11 @@ class Model(Base):
     metrics: Mapped[list["ModelMetric"]] = relationship(back_populates="model")
     predictions: Mapped[list["Prediction"]] = relationship(back_populates="model")
 
+    def __str__(self) -> str:
+        return f"{self.name} {self.version}"
+
+    __repr__ = __str__
+
 
 class Metric(Base):
     __tablename__ = "metrics"
@@ -211,6 +289,11 @@ class Metric(Base):
     name: Mapped[str] = mapped_column(String(50), nullable=False, unique=True)
 
     model_metrics: Mapped[list["ModelMetric"]] = relationship(back_populates="metric")
+
+    def __str__(self) -> str:
+        return self.name
+
+    __repr__ = __str__
 
 
 class ModelMetric(Base):
@@ -223,6 +306,13 @@ class ModelMetric(Base):
 
     model: Mapped["Model"] = relationship(back_populates="metrics")
     metric: Mapped["Metric"] = relationship(back_populates="model_metrics")
+
+    def __str__(self) -> str:
+        metric = self.__dict__.get("metric")
+        metric_label = str(metric) if metric is not None else f"metric #{self.metric_id}"
+        return f"{metric_label}: {self.metric_value}"
+
+    __repr__ = __str__
 
 
 class Prediction(Base):
@@ -245,6 +335,11 @@ class Prediction(Base):
     )
     query_history: Mapped[list["UserQueryHistory"]] = relationship(back_populates="prediction")
 
+    def __str__(self) -> str:
+        return f"Prediction #{self.id}"
+
+    __repr__ = __str__
+
 
 class PredictionCharacteristic(Base):
     __tablename__ = "prediction_characteristics"
@@ -253,6 +348,11 @@ class PredictionCharacteristic(Base):
     name: Mapped[str] = mapped_column(String(100), nullable=False, unique=True)
 
     values: Mapped[list["PredictionCharacteristicValue"]] = relationship(back_populates="characteristic")
+
+    def __str__(self) -> str:
+        return self.name
+
+    __repr__ = __str__
 
 
 class PredictionCharacteristicValue(Base):
@@ -266,6 +366,15 @@ class PredictionCharacteristicValue(Base):
     prediction: Mapped["Prediction"] = relationship(back_populates="characteristic_values")
     characteristic: Mapped["PredictionCharacteristic"] = relationship(back_populates="values")
 
+    def __str__(self) -> str:
+        characteristic = self.__dict__.get("characteristic")
+        characteristic_label = (
+            str(characteristic) if characteristic is not None else f"characteristic #{self.characteristic_id}"
+        )
+        return f"{characteristic_label}: {self.predicted_value}"
+
+    __repr__ = __str__
+
 
 class UserRole(Base):
     __tablename__ = "user_roles"
@@ -274,6 +383,11 @@ class UserRole(Base):
     name: Mapped[str] = mapped_column(String(20), nullable=False, unique=True)
 
     users: Mapped[list["User"]] = relationship(back_populates="role")
+
+    def __str__(self) -> str:
+        return self.name
+
+    __repr__ = __str__
 
 
 class User(Base):
@@ -290,6 +404,11 @@ class User(Base):
     role: Mapped["UserRole"] = relationship(back_populates="users")
     query_history: Mapped[list["UserQueryHistory"]] = relationship(back_populates="user")
 
+    def __str__(self) -> str:
+        return self.username
+
+    __repr__ = __str__
+
 
 class UserQueryHistory(Base):
     __tablename__ = "user_query_history"
@@ -301,3 +420,12 @@ class UserQueryHistory(Base):
 
     user: Mapped["User"] = relationship(back_populates="query_history")
     prediction: Mapped["Prediction"] = relationship(back_populates="query_history")
+
+    def __str__(self) -> str:
+        user = self.__dict__.get("user")
+        prediction = self.__dict__.get("prediction")
+        user_label = str(user) if user is not None else f"user #{self.user_id}"
+        prediction_label = str(prediction) if prediction is not None else f"prediction #{self.prediction_id}"
+        return f"{user_label} -> {prediction_label}"
+
+    __repr__ = __str__

@@ -453,7 +453,7 @@ Install Python runtime dependencies with:
 pip install -r requirements.txt
 ```
 
-The pinned backend/auth stack includes FastAPI, Uvicorn, Pydantic, SQLAlchemy, `psycopg[binary]`, `python-dotenv`, `httpx`, `APScheduler`, pandas, NumPy, scikit-learn, CatBoost, PyJWT, `passlib[bcrypt]`, and `bcrypt==4.0.1`.
+The pinned backend/auth stack includes FastAPI, Uvicorn, Pydantic, SQLAlchemy, `psycopg[binary]`, `python-dotenv`, `httpx`, `APScheduler`, SQLAdmin, `itsdangerous`, pandas, NumPy, scikit-learn, CatBoost, PyJWT, `passlib[bcrypt]`, and `bcrypt==4.0.1`.
 
 PostgreSQL 16 through Docker Compose is the primary production-like database mode. Copy `.env.example` to `.env`, keep `.env` local and uncommitted, then start PostgreSQL:
 
@@ -505,7 +505,37 @@ API_FOOTBALL_MAX_SYNC_FIXTURES=25
 
 Default scheduled windows are intentionally small to respect free-tier API limits: fixtures run daily at `03:00` for `today -> today + 14 days`; odds run daily at `06:00` for up to 25 locally stored API fixtures in `today -> today + 7 days`; results/statistics run daily at `23:30` for up to 25 locally stored API fixtures in `today - 2 days -> today`. Worst-case daily usage is about 80 requests: 5 fixtures requests, 25 odds requests, and 50 result/statistics requests. `API_FOOTBALL_SEASON=2026` is the target app season, but API-FOOTBALL free plans may not expose that season yet; for local API checks use a season available on the configured plan if needed.
 
-Scheduler health is exposed separately at `GET /scheduler/health` so existing `/health` and `/db/health` response schemas remain unchanged. Admin panel, admin-triggered retraining, and monthly retraining automation are future work and are not automated by the current backend.
+Scheduler health is exposed separately at `GET /scheduler/health` so existing `/health` and `/db/health` response schemas remain unchanged. Admin-triggered retraining and monthly retraining automation are future work and are not automated by the current backend.
+
+### SQLAdmin Administration Panel
+
+The backend includes a SQLAdmin-based administration panel mounted at `/admin`. It is a browser-only administrative UI and is separate from the Android client authentication flow.
+
+Admin UI authentication is session-based through SQLAdmin's `AuthenticationBackend` and `itsdangerous` session signing. The login form reuses the existing backend `authenticate_user()` helper, but only users with the `admin` role can enter `/admin`. Android continues to use the existing JWT bearer-token endpoints (`/auth/login`, `/auth/me`, profile, history, and prediction APIs); the SQLAdmin session cookie is not used by Android.
+
+The first administrator is created by promoting an existing trusted user, for example the local `Vova777` user, from `user` to `admin` through a controlled database/admin process. Public registration does not create administrators.
+
+The admin panel currently provides:
+
+- a localized login/logout flow;
+- a dashboard with operational counters for users, matches, predictions, recent activity, and lightweight CSS charts;
+- list, detail, filter, pagination, and export views for users, football data, predictions, model metadata, and reference tables;
+- readable foreign-key display for seasons, leagues, teams, matches, models, predictions, and user history.
+
+The first implementation intentionally avoids dangerous CRUD:
+
+- `password_hash` is not exposed in Users;
+- Users can be viewed, searched, filtered, and have only their role edited;
+- user deletion is disabled;
+- Match, MatchResult, Odds, Prediction, PredictionCharacteristicValue, UserQueryHistory, Models, ModelMetrics, and reference tables are read-only;
+- Predictions and user history cannot be created, edited, or deleted through the admin panel.
+
+Role-editing protection is enforced in the Users admin view:
+
+- an administrator cannot demote their own role;
+- the last remaining administrator cannot be demoted to `user`.
+
+If SQLAdmin blocks a protected role change, the UI shows a Russian error message and the database state is not changed. SQLAdmin still logs the caught exception traceback in backend logs through its internal edit handler; this is a known SQLAdmin logging limitation of the current safe implementation.
 
 The `/predict` endpoint remains available for sample/manual JSON input. The match-based `/predict/{match_id}` flow loads final models from `models/final_app/`, reads metadata from `configs/final_app_models.json`, generates runtime features from the configured SQL database, applies the priority-based reconciliation layer, and stores prediction outputs.
 
