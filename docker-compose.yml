@@ -1,10 +1,33 @@
 services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: prediction_football_backend
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    volumes:
+      - ./models:/app/models:ro
+      - ./data:/app/data:ro
+      - ./reports:/app/reports:ro
+      - ./backups:/app/backups
+    depends_on:
+      postgres:
+        condition: service_healthy
+
   postgres:
     image: postgres:16
     container_name: prediction_football_postgres
     restart: unless-stopped
-    env_file:
-      - .env
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:

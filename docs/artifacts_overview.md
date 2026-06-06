@@ -9,6 +9,9 @@ This document gives a short engineering overview of the current project artifact
 - `src/api/` contains the FastAPI backend for the Android mobile application, including auth endpoints, match browsing, prediction, persisted prediction details, and user prediction history.
 - `src/api/admin/` contains the SQLAdmin administration panel mounted at `/admin`, including session-based admin authentication, dashboard, model views, and localized template overrides.
 - `src/api/database/` contains the SQLAlchemy physical database layer for backend persistence. PostgreSQL 16 through Docker Compose is the primary production-like mode; SQLite is retained as a local fallback when `DATABASE_URL` is not set.
+- `Dockerfile` builds the FastAPI backend container and starts it with `uvicorn src.api.main:app --host 0.0.0.0 --port 8000`.
+- `.dockerignore` keeps local datasets, model binaries, backups, Android build inputs, and other runtime artifacts out of the backend image context.
+- `docker-compose.yml` defines the production-like local stack with PostgreSQL 16 and the FastAPI backend service. The backend service connects to PostgreSQL through the internal Docker network using the `postgres` hostname.
 - API-FOOTBALL / API-SPORTS is the selected single external source for future fixtures, results, match statistics, and odds. Its API key is a local `.env` value and must not be committed.
 - `android_app/` contains the Android tablet MVP client. It is a Kotlin + Jetpack Compose thin client that calls FastAPI through Retrofit and does not run ML models, calculate ML features, or access any database directly.
 - `requirements.txt` pins the Python runtime dependencies used by the backend, model loading, and auth flow.
@@ -47,7 +50,7 @@ This document gives a short engineering overview of the current project artifact
 - `src/api/services/prediction_service.py` contains model inference, exact-score clipping, reconciliation, prediction persistence, model-aware prediction reuse by `match_id` plus deployed outcome `model_id`, and unread-history count/mark-viewed helpers.
 - `src/api/database/clear_runtime_data.py` is a development-only cleanup script for runtime/demo data. It clears `user_query_history`, `prediction_characteristic_values`, `predictions`, and `users`, resets runtime identity/autoincrement counters for PostgreSQL and SQLite, and preserves football domain data, odds, teams, model metadata, metrics, and ELO ratings.
 - `src/api/database/migrate_user_history_view_state.py` adds or verifies `users.last_history_viewed_at` for PostgreSQL and SQLite so existing local databases can support unread-history state.
-- `src/api/database/session.py` configures the SQLAlchemy engine, session factory, and declarative base from `DATABASE_URL`.
+- `src/api/database/session.py` configures the SQLAlchemy engine, session factory, and declarative base from `DATABASE_URL`; the engine uses connection pre-ping so the backend can recover cleanly after PostgreSQL connection restarts.
 - `src/api/database/models.py` stores SQLAlchemy ORM models for the physical database schema.
 - `src/api/database/init_db.py` creates all database tables for the configured SQL database.
 - `src/api/database/migrate_external_sources.py` is an idempotent schema migration helper for the API-FOOTBALL external source table and nullable external identity fields on `matches`.
@@ -247,6 +250,14 @@ python src/api/database/load_football_data.py
 python src/api/database/load_elo_ratings.py
 python src/api/database/seed_demo_upcoming_matches.py
 ```
+
+The repository also includes a backend Docker service for VPS deployment preparation:
+
+```bash
+docker compose up -d --build
+```
+
+The backend container uses `Dockerfile`, starts with `uvicorn src.api.main:app --host 0.0.0.0 --port 8000`, mounts local `models/`, `data/`, `reports/`, and `backups/`, and receives a Docker-network `DATABASE_URL` that points to the `postgres` service.
 
 The `.env` file is local and must not be committed. SQLite remains available as a fallback when `DATABASE_URL` is not set.
 

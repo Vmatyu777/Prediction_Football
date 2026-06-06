@@ -461,6 +461,31 @@ PostgreSQL 16 through Docker Compose is the primary production-like database mod
 docker compose up -d postgres
 ```
 
+The repository also includes a Dockerfile and a backend service for VPS deployment preparation. The backend container starts with:
+
+```bash
+uvicorn src.api.main:app --host 0.0.0.0 --port 8000
+```
+
+Run the PostgreSQL and backend services together:
+
+```bash
+docker compose up -d --build
+```
+
+Inside Docker Compose, the backend uses the PostgreSQL service through the internal Docker network with hostname `postgres`. The compose file overrides `DATABASE_URL` for the backend container to use:
+
+```text
+postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+```
+
+Local artifacts required for a full production-like deployment are intentionally not tracked by Git and must be provided on the target host:
+
+- `.env` with real production secrets and API credentials;
+- `models/final_app/` with final trained model binaries;
+- initial database loading data under `data/raw/` and `data/interim/`, or a PostgreSQL backup under `backups/`;
+- optional `reports/` artifacts when `/matches/showcase` should be available.
+
 SQLite is preserved as a legacy/local fallback when `DATABASE_URL` is not set. In the PostgreSQL mode, `GET /db/health` should return `database=postgresql`.
 
 API-FOOTBALL / API-SPORTS is the selected single external source for future fixtures, match results, match statistics, and odds. The API key must be stored only in local `.env` as `API_FOOTBALL_API_KEY`; `.env.example` contains only an empty template value. External API identity is stored through `external_sources` and nullable external fields on `matches` so API-loaded matches can be upserted without duplicates while historical and demo matches can keep `NULL` external ids.

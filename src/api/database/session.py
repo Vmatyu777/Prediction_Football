@@ -12,7 +12,7 @@ class Base(DeclarativeBase):
 
 
 database_url = make_url(DATABASE_URL)
-engine_kwargs = {}
+engine_kwargs = {"pool_pre_ping": True}
 if database_url.get_backend_name() == "sqlite":
     engine_kwargs["connect_args"] = {"check_same_thread": False}
 

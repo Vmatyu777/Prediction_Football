@@ -139,6 +139,8 @@ Current design decision: exact score must not drive the final system because it 
 - Current endpoints: `GET /health`, `GET /db/health`, `GET /models`, `POST /auth/register`, `POST /auth/login`, `GET /auth/me`, `GET /users/me/history`, `GET /users/me/history/unread-count`, `POST /users/me/history/mark-viewed`, `GET /matches`, `GET /matches/{match_id}`, `GET /matches/upcoming`, `GET /matches/recent`, `GET /matches/recent/sampled`, `GET /matches/showcase`, `POST /predict`, `POST /predict/{match_id}`, `GET /predictions/{prediction_id}`.
 - Run locally with `uvicorn src.api.main:app --reload`.
 - Run for Android emulator/tablet testing with `uvicorn src.api.main:app --host 0.0.0.0 --port 8000 --reload`.
+- Docker deployment preparation is available through `Dockerfile` and `docker-compose.yml`; run both PostgreSQL and FastAPI with `docker compose up -d --build`.
+- The backend Docker service starts with `uvicorn src.api.main:app --host 0.0.0.0 --port 8000` and connects to PostgreSQL through the Docker network using the `postgres` hostname.
 - The backend must load tracked metadata from `configs/final_app_models.json` and local model binaries from `models/final_app/`.
 - Match-based prediction uses SQL database-backed runtime feature generation; do not retrain models or change final ML configurations from the API layer.
 - PostgreSQL 16 through Docker Compose is the primary production-like backend database mode.
@@ -173,6 +175,7 @@ Current design decision: exact score must not drive the final system because it 
 - Primary local database mode is PostgreSQL 16 through Docker Compose.
 - `.env.example` is the tracked environment template; `.env` is local, ignored by Git, and must not be committed.
 - Start PostgreSQL with `docker compose up -d postgres`.
+- Start the production-like local stack with `docker compose up -d --build`.
 - SQLite fallback database path is `data/app/football.db`.
 - SQLite database files are ignored by Git and must not be committed.
 - `data/raw/` is the canonical source location for `Matches.csv` and `EloRatings.csv`.

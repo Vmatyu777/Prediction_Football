@@ -196,6 +196,16 @@ Run backend for emulator/device testing:
 ```bash
 cd ..
 cp .env.example .env
+docker compose up -d --build
+```
+
+The Docker Compose stack starts PostgreSQL and the FastAPI backend. The backend container listens on `0.0.0.0:8000`, so Android Emulator can use `http://10.0.2.2:8000/` and a physical tablet can use `http://<LAN_IP>:8000/`.
+
+If you run the backend directly on the host instead of the backend container, start PostgreSQL first and then run Uvicorn:
+
+```bash
+cd ..
+cp .env.example .env
 docker compose up -d postgres
 python src/api/database/init_db.py
 python src/api/database/seed_db.py
