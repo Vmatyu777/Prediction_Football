@@ -407,6 +407,8 @@ The compact list view includes all database columns.
 - `users` remains restricted: password hashes are not exposed, user deletion is disabled, and only role editing is enabled.
 - Prediction, football domain, model metadata, metrics, odds, and reference data remain read-only unless explicitly reviewed later.
 - Detail views are intentionally more complete than list views where tables can be wide or operationally dense.
+- SQLAdmin renders UTC-naive `DateTime` fields as Moscow time using `DD.MM.YYYY HH:mm МСК`. This applies to `created_at`, `query_date`, `match_date`, `trained_at`, `collected_at`, `last_synced_at`, and `last_history_viewed_at` wherever they appear in SQLAdmin list/detail/dashboard views.
+- SQLAdmin renders `Date` fields as `DD.MM.YYYY` without time. This applies to `rating_date`, `start_date`, and `end_date`.
 
 ## Defense Demo Mode
 

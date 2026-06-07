@@ -314,6 +314,7 @@ The FastAPI backend mounts a SQLAdmin administration panel at `/admin`. It is in
 The admin package is structured as follows:
 
 - `src/api/admin/auth.py`: session login/logout/authentication for `/admin`, reusing the existing `authenticate_user()` helper and requiring the `admin` role for real administrators. It also creates a separate passwordless signed demo session when `PREDICTION_FOOTBALL_ADMIN_DEMO_ENABLED=true`.
+- `src/api/admin/formatters.py`: SQLAdmin-only date/time display helpers. UTC-naive `DateTime` values are rendered as `Europe/Moscow` time in `DD.MM.YYYY HH:mm МСК` format, while `Date` values keep date-only formatting.
 - `src/api/admin/setup.py`: SQLAdmin registration, `/admin` mount configuration, dashboard registration, view registration, and route-level demo guards for create/edit/delete/export endpoints.
 - `src/api/admin/dashboard.py`: operational dashboard with total users, users in the last 7 days, total matches, upcoming matches, total predictions, predictions in the last 7 days, latest predictions, and latest user query history.
 - `src/api/admin/views.py`: SQLAdmin model views, Russian labels, safe list/detail/filter/export configuration, foreign-key display helpers, read-only rules, hidden password hashes, and admin role protection.

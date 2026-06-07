@@ -144,7 +144,7 @@
                   {% endif %}
                 </td>
                 <td>{{ prediction.predicted_outcome }}</td>
-                <td>{{ prediction.created_at }}</td>
+                <td>{{ format_moscow_datetime(prediction.created_at) }}</td>
               </tr>
               {% else %}
               <tr><td colspan="4" class="text-muted">Прогнозов пока нет.</td></tr>
@@ -182,7 +182,7 @@
                     #{{ row.prediction_id }}
                   {% endif %}
                 </td>
-                <td>{{ row.query_date }}</td>
+                <td>{{ format_moscow_datetime(row.query_date) }}</td>
               </tr>
               {% else %}
               <tr><td colspan="4" class="text-muted">Истории запросов пока нет.</td></tr>

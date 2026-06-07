@@ -6,6 +6,7 @@ from sqlalchemy import Date, cast, func
 from sqlalchemy.orm import joinedload
 from sqladmin import BaseView, expose
 
+from src.api.admin.formatters import format_moscow_datetime
 from src.api.database.models import Match, MatchSource, Model, Prediction, User, UserQueryHistory
 from src.api.database.session import SessionLocal
 
@@ -118,5 +119,6 @@ class DashboardView(BaseView):
                 "predictions_by_model": predictions_by_model,
                 "latest_predictions": latest_predictions,
                 "latest_history": latest_history,
+                "format_moscow_datetime": format_moscow_datetime,
             },
         )

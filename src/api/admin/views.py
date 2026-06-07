@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import date, datetime
 from typing import Any
 
 from sqlalchemy import select
@@ -8,6 +9,7 @@ from sqladmin import ModelView
 from sqladmin.filters import BooleanFilter, ForeignKeyFilter, StaticValuesFilter
 
 from src.api.admin.auth import ADMIN_SESSION_USER_ID_KEY, is_demo_admin_session
+from src.api.admin.formatters import format_admin_date, format_moscow_datetime
 from src.api.database.models import (
     Bookmaker,
     Country,
@@ -51,9 +53,9 @@ def format_match_label(match: Match | None) -> str:
     home_team = match.__dict__.get("home_team")
     away_team = match.__dict__.get("away_team")
     if home_team is not None and away_team is not None:
-        return f"{home_team} vs {away_team} ({match.match_date:%Y-%m-%d})"
+        return f"{home_team} vs {away_team} ({format_moscow_datetime(match.match_date)})"
 
-    return f"Матч #{match.id} ({match.match_date:%Y-%m-%d})"
+    return f"Матч #{match.id} ({format_moscow_datetime(match.match_date)})"
 
 
 def format_prediction_label(prediction: Prediction | None) -> str:
@@ -96,6 +98,11 @@ class SecureModelView(ModelView):
     can_export = True
     page_size = 50
     page_size_options = [25, 50, 100]
+    column_type_formatters = {
+        **ModelView.column_type_formatters,
+        datetime: format_moscow_datetime,
+        date: format_admin_date,
+    }
 
     def is_visible(self, request) -> bool:
         if is_demo_admin_session(request):

@@ -172,6 +172,7 @@ Current design decision: exact score must not drive the final system because it 
 - Admin panel access is restricted to users with the `admin` role. Public registration must continue to create regular users only; the first admin is created by promoting an existing trusted user through a controlled database/admin process.
 - SQLAdmin defense demo mode is controlled by `PREDICTION_FOOTBALL_ADMIN_DEMO_ENABLED`. Demo access uses a signed session flag, does not create a database user, does not require or store a demo password, and must remain read-only.
 - Demo SQLAdmin sessions may show only the main demonstration views: users, matches, match results, predictions, user query history, models, model metrics, countries, leagues, seasons, and teams. Technical or high-volume views must stay hidden from demo sessions.
+- SQLAdmin must display UTC-naive backend `DateTime` values in `Europe/Moscow` using `DD.MM.YYYY HH:mm МСК`; this is display-only and must not change stored database values or Android API datetime contracts. Date-only fields must stay date-only.
 - SQLAdmin Users view must never display `password_hash`. Users may be viewed, searched, filtered, and have only their role edited.
 - User deletion is not allowed in SQLAdmin.
 - SQLAdmin demo sessions must not create, edit, delete, export, run custom actions, or change user roles.

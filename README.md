@@ -628,6 +628,8 @@ PREDICTION_FOOTBALL_ADMIN_DEMO_ENABLED=false
 
 Demo sessions can see only the main demonstration views: Users, Matches, MatchResults, Predictions, UserQueryHistory, Models, ModelMetrics, Countries, Leagues, Seasons, and Teams. Technical or dense views such as Odds, TeamEloRatings, ExternalSources, MatchSources, MatchStatuses, ModelTypes, Metrics, PredictionCharacteristics, PredictionCharacteristicValues, Bookmakers, and UserRoles are hidden from the demo menu and blocked by SQLAdmin access checks.
 
+SQLAdmin displays stored UTC-naive `DateTime` values in the `Europe/Moscow` timezone using the `DD.MM.YYYY HH:mm МСК` format. This is a presentation-only conversion for the browser admin UI; database values, API responses, Android contracts, and ML/runtime logic are not changed. Date-only fields such as season dates and ELO rating dates keep a date-only `DD.MM.YYYY` format.
+
 The first implementation intentionally avoids dangerous CRUD:
 
 - `password_hash` is not exposed in Users;
