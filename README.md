@@ -416,6 +416,7 @@ src/api/
 
 Available endpoints:
 
+- `GET /` returns a small production landing page with links to health, Swagger UI, and SQLAdmin login;
 - `GET /health`;
 - `GET /db/health`;
 - `GET /models`;
@@ -487,6 +488,43 @@ Local artifacts required for a full production-like deployment are intentionally
 - optional `reports/` artifacts when `/matches/showcase` should be available.
 
 SQLite is preserved as a legacy/local fallback when `DATABASE_URL` is not set. In the PostgreSQL mode, `GET /db/health` should return `database=postgresql`.
+
+Production deployment is currently hosted at:
+
+```text
+https://prediction-football.ru/
+```
+
+The VPS deployment uses Docker Compose for PostgreSQL and the FastAPI backend. The backend container starts Uvicorn on `0.0.0.0:8000`, Docker publishes it on the VPS, and Nginx uses `http://127.0.0.1:8000` as the local upstream.
+
+```text
+HTTPS :443 -> Nginx -> http://127.0.0.1:8000
+HTTP  :80  -> HTTPS redirect
+```
+
+TLS certificates are issued by Let's Encrypt through Certbot with the Nginx plugin for `prediction-football.ru` and `www.prediction-football.ru`. Certbot's system timer handles renewal; verify it with:
+
+```bash
+certbot renew --dry-run --no-random-sleep-on-renew
+```
+
+Production health checks:
+
+```bash
+curl https://prediction-football.ru/
+curl https://prediction-football.ru/health
+curl https://prediction-football.ru/db/health
+curl https://prediction-football.ru/models
+curl https://prediction-football.ru/scheduler/health
+```
+
+The SQLAdmin panel is available at:
+
+```text
+https://prediction-football.ru/admin/login
+```
+
+SQLAdmin is still backend-only administration. It does not replace Android JWT authentication and is not used by the mobile client.
 
 API-FOOTBALL / API-SPORTS is the selected single external source for future fixtures, match results, match statistics, and odds. The API key must be stored only in local `.env` as `API_FOOTBALL_API_KEY`; `.env.example` contains only an empty template value. External API identity is stored through `external_sources` and nullable external fields on `matches` so API-loaded matches can be upserted without duplicates while historical and demo matches can keep `NULL` external ids.
 
@@ -628,12 +666,20 @@ Backend URL defaults:
 
 - Android Emulator: `http://10.0.2.2:8000/`;
 - physical tablet: `http://<LAN_IP>:8000/`.
+- deployed VPS backend: `https://prediction-football.ru/`.
 
 The debug build reads `BuildConfig.API_BASE_URL`. The default is the emulator URL. For a physical Android tablet on the same LAN, build with:
 
 ```bash
 cd android_app
 ./gradlew :app:assembleDebug -PapiBaseUrl=http://<LAN_IP>:8000/
+```
+
+For the deployed HTTPS backend, build with:
+
+```bash
+cd android_app
+./gradlew :app:assembleDebug -PapiBaseUrl=https://prediction-football.ru/
 ```
 
 `10.0.2.2` works only in Android Emulator. A physical tablet must use the laptop's LAN IP address and the backend must listen on `0.0.0.0:8000`.

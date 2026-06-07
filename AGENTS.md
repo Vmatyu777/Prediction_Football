@@ -136,11 +136,13 @@ Current design decision: exact score must not drive the final system because it 
 ## Backend API Skeleton
 
 - Initial FastAPI backend code lives under `src/api/`.
-- Current endpoints: `GET /health`, `GET /db/health`, `GET /models`, `POST /auth/register`, `POST /auth/login`, `GET /auth/me`, `GET /users/me/history`, `GET /users/me/history/unread-count`, `POST /users/me/history/mark-viewed`, `GET /matches`, `GET /matches/{match_id}`, `GET /matches/upcoming`, `GET /matches/recent`, `GET /matches/recent/sampled`, `GET /matches/showcase`, `POST /predict`, `POST /predict/{match_id}`, `GET /predictions/{prediction_id}`.
+- Current endpoints: `GET /`, `GET /health`, `GET /db/health`, `GET /models`, `POST /auth/register`, `POST /auth/login`, `GET /auth/me`, `GET /users/me/history`, `GET /users/me/history/unread-count`, `POST /users/me/history/mark-viewed`, `GET /matches`, `GET /matches/{match_id}`, `GET /matches/upcoming`, `GET /matches/recent`, `GET /matches/recent/sampled`, `GET /matches/showcase`, `POST /predict`, `POST /predict/{match_id}`, `GET /predictions/{prediction_id}`.
+- `GET /` is a production landing page rendered with FastAPI `HTMLResponse`; unknown routes must continue to return 404.
 - Run locally with `uvicorn src.api.main:app --reload`.
 - Run for Android emulator/tablet testing with `uvicorn src.api.main:app --host 0.0.0.0 --port 8000 --reload`.
 - Docker deployment preparation is available through `Dockerfile` and `docker-compose.yml`; run both PostgreSQL and FastAPI with `docker compose up -d --build`.
 - The backend Docker service starts with `uvicorn src.api.main:app --host 0.0.0.0 --port 8000` and connects to PostgreSQL through the Docker network using the `postgres` hostname.
+- Production is served at `https://prediction-football.ru/` through Nginx reverse proxy and Let's Encrypt certificates. Public HTTP traffic on port 80 redirects to HTTPS on port 443, and Nginx proxies requests to the Dockerized backend on `http://127.0.0.1:8000`.
 - The backend must load tracked metadata from `configs/final_app_models.json` and local model binaries from `models/final_app/`.
 - Match-based prediction uses SQL database-backed runtime feature generation; do not retrain models or change final ML configurations from the API layer.
 - PostgreSQL 16 through Docker Compose is the primary production-like backend database mode.
@@ -241,7 +243,7 @@ Current design decision: exact score must not drive the final system because it 
 - Email verification, password reset, push notifications, team/league logos, standings, H2H, calendar, and news screens are not implemented.
 - Android Emulator backend URL: `http://10.0.2.2:8000/`.
 - Physical tablet backend URL: `http://<LAN_IP>:8000/`.
-- Android debug builds use `BuildConfig.API_BASE_URL`; override it with `-PapiBaseUrl=http://<LAN_IP>:8000/` for a physical tablet.
+- Android debug builds use `BuildConfig.API_BASE_URL`; override it with `-PapiBaseUrl=http://<LAN_IP>:8000/` for a physical tablet or `-PapiBaseUrl=https://prediction-football.ru/` for the deployed VPS backend.
 
 ## Git Hygiene
 

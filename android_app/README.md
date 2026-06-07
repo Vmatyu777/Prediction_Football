@@ -191,6 +191,31 @@ The default debug build uses the emulator URL through `BuildConfig.API_BASE_URL`
 ./gradlew :app:assembleDebug -PapiBaseUrl=http://192.168.1.10:8000/
 ```
 
+VPS backend:
+
+```text
+https://prediction-football.ru/
+```
+
+The root URL serves a small backend landing page. Verify production availability before building an APK:
+
+```bash
+curl https://prediction-football.ru/
+curl https://prediction-football.ru/health
+```
+
+Build a debug APK against the VPS backend:
+
+```bash
+./gradlew :app:assembleDebug -PapiBaseUrl=https://prediction-football.ru/
+```
+
+Install the VPS-targeted debug build on a connected emulator or device:
+
+```bash
+./gradlew :app:installDebug -PapiBaseUrl=https://prediction-football.ru/
+```
+
 Run backend for emulator/device testing:
 
 ```bash
@@ -226,6 +251,14 @@ Build the app from this directory:
 ./gradlew :app:assembleDebug
 ```
 
+On Windows command line, if `java` is not available in `PATH`, use the Android Studio JBR for the current PowerShell session:
+
+```powershell
+$env:JAVA_HOME='C:\Program Files\Android\Android Studio\jbr'
+$env:PATH="$env:JAVA_HOME\bin;$env:PATH"
+.\gradlew.bat :app:assembleDebug -PapiBaseUrl=https://prediction-football.ru/
+```
+
 Install on a running emulator:
 
 ```bash
@@ -243,6 +276,12 @@ For a physical tablet, use the laptop LAN IP and rebuild with:
 
 ```bash
 ./gradlew :app:assembleDebug -PapiBaseUrl=http://<LAN_IP>:8000/
+```
+
+For the deployed VPS backend, rebuild with:
+
+```bash
+./gradlew :app:assembleDebug -PapiBaseUrl=https://prediction-football.ru/
 ```
 
 ## MVP Constraints

@@ -12,6 +12,7 @@ This document gives a short engineering overview of the current project artifact
 - `Dockerfile` builds the FastAPI backend container and starts it with `uvicorn src.api.main:app --host 0.0.0.0 --port 8000`.
 - `.dockerignore` keeps local datasets, model binaries, backups, Android build inputs, and other runtime artifacts out of the backend image context.
 - `docker-compose.yml` defines the production-like local stack with PostgreSQL 16 and the FastAPI backend service. The backend service connects to PostgreSQL through the internal Docker network using the `postgres` hostname.
+- The deployed VPS backend is served at `https://prediction-football.ru/` through Nginx reverse proxy and Let's Encrypt TLS. Nginx redirects HTTP port 80 to HTTPS port 443 and proxies requests to the Dockerized backend on `http://127.0.0.1:8000`.
 - API-FOOTBALL / API-SPORTS is the selected single external source for future fixtures, results, match statistics, and odds. Its API key is a local `.env` value and must not be committed.
 - `android_app/` contains the Android tablet MVP client. It is a Kotlin + Jetpack Compose thin client that calls FastAPI through Retrofit and does not run ML models, calculate ML features, or access any database directly.
 - `requirements.txt` pins the Python runtime dependencies used by the backend, model loading, and auth flow.
@@ -261,6 +262,26 @@ The backend container uses `Dockerfile`, starts with `uvicorn src.api.main:app -
 
 The `.env` file is local and must not be committed. SQLite remains available as a fallback when `DATABASE_URL` is not set.
 
+The production VPS deployment uses the same Docker Compose backend and PostgreSQL services with ignored runtime artifacts copied manually to the server:
+
+- `.env` with production secrets and API credentials;
+- `models/final_app/` model binaries;
+- historical data CSV files under `data/raw/` and `data/interim/`, or a PostgreSQL backup under `backups/`;
+- optional report artifacts for showcase examples.
+
+Public traffic is handled by Nginx:
+
+```text
+https://prediction-football.ru/ -> Nginx :443 -> http://127.0.0.1:8000
+http://prediction-football.ru/  -> HTTPS redirect
+```
+
+Let's Encrypt certificates are managed by Certbot with the Nginx plugin. Renewal is checked with:
+
+```bash
+certbot renew --dry-run --no-random-sleep-on-renew
+```
+
 PostgreSQL backup and restore helpers are available:
 
 ```bash
@@ -302,6 +323,7 @@ Known limitation: when a protected role update is rejected, SQLAdmin displays th
 
 Endpoints:
 
+- `GET /` returns the production landing page with links to `/health`, `/docs`, and `/admin/login`.
 - `GET /health` returns service status.
 - `GET /db/health` checks configured database connectivity and should report `database=postgresql` in PostgreSQL mode.
 - `GET /scheduler/health` returns scheduler enabled/running state and next run times without changing existing health schemas.

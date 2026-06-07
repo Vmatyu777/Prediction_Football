@@ -5,6 +5,7 @@ from datetime import date
 import logging
 
 from fastapi import Depends, FastAPI, HTTPException, Query, status
+from fastapi.responses import HTMLResponse
 from sqlalchemy import text
 
 from src.api.config import APP_TITLE, APP_VERSION
@@ -74,6 +75,115 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title=APP_TITLE, version=APP_VERSION, lifespan=lifespan)
 setup_admin(app)
+
+
+@app.get("/", response_class=HTMLResponse, include_in_schema=False)
+def landing_page() -> HTMLResponse:
+    html = """
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Prediction Football API</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #07120d;
+      --panel: #0f1f16;
+      --text: #eef8f0;
+      --muted: #a7b7ad;
+      --accent: #9be15d;
+      --border: #263a2d;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 32px;
+      background: radial-gradient(circle at top, #17351f 0, var(--bg) 52%);
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    main {
+      width: min(720px, 100%);
+      padding: 36px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: rgba(15, 31, 22, 0.94);
+      box-shadow: 0 24px 80px rgba(0, 0, 0, 0.35);
+    }
+    h1 {
+      margin: 0 0 10px;
+      font-size: clamp(2rem, 5vw, 3.5rem);
+      line-height: 1.05;
+    }
+    p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 1.05rem;
+      line-height: 1.6;
+    }
+    .status {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin: 24px 0;
+      padding: 8px 12px;
+      border: 1px solid rgba(155, 225, 93, 0.35);
+      border-radius: 999px;
+      color: var(--accent);
+      font-weight: 700;
+      background: rgba(155, 225, 93, 0.08);
+    }
+    .status::before {
+      content: "";
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 18px var(--accent);
+    }
+    nav {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 12px;
+      margin-top: 24px;
+    }
+    a {
+      display: block;
+      padding: 14px 16px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      text-decoration: none;
+      background: #0b1911;
+    }
+    a:hover, a:focus {
+      border-color: var(--accent);
+      color: var(--accent);
+      outline: none;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Prediction Football API</h1>
+    <p>Machine Learning Football Prediction System</p>
+    <div class="status">Status: Online</div>
+    <p>Available links:</p>
+    <nav aria-label="Available API links">
+      <a href="/health">/health</a>
+      <a href="/docs">/docs</a>
+      <a href="/admin/login">/admin/login</a>
+    </nav>
+  </main>
+</body>
+</html>
+"""
+    return HTMLResponse(content=html)
 
 
 @app.get("/health", response_model=HealthResponse)
