@@ -1,5 +1,6 @@
 {% extends "sqladmin/layout.html" %}
 {% block content %}
+{% set is_demo_admin = request.session.get("admin_demo") %}
 <div class="container-fluid">
   <div class="row">
     <div class="col-12">
@@ -9,7 +10,7 @@
             <div class="card-header">
               <h3 class="card-title">{{ model_view.name_plural }}</h3>
               <div class="ms-auto">
-                {% if model_view.can_export %}
+                {% if model_view.can_export and not is_demo_admin %}
                 {% if model_view.export_types | length > 1 %}
                 <div class="ms-3 d-inline-block dropdown">
                   <a href="#" class="btn btn-secondary dropdown-toggle" id="dropdownMenuButton1" data-bs-toggle="dropdown"
@@ -33,7 +34,7 @@
                 </div>
                 {% endif %}
                 {% endif %}
-                {% if model_view.can_create %}
+                {% if model_view.can_create and not is_demo_admin %}
                 <div class="ms-3 d-inline-block">
                   <a href="{{ url_for('admin:create', identity=model_view.identity) }}" class="btn btn-primary">
                     + Создать {{ model_view.name }}
@@ -45,12 +46,12 @@
             <div class="card-body border-bottom py-3">
               <div class="d-flex justify-content-between">
                 <div class="dropdown col-4">
-                  <button {% if not model_view.can_delete and not model_view._custom_actions_in_list %} disabled {% endif %}
+                  <button {% if is_demo_admin or (not model_view.can_delete and not model_view._custom_actions_in_list) %} disabled {% endif %}
                     class="btn btn-light dropdown-toggle" type="button" id="dropdownMenuButton" data-toggle="dropdown"
                     aria-haspopup="true" aria-expanded="false">
                     Действия
                   </button>
-                  {% if model_view.can_delete or model_view._custom_actions_in_list %}
+                  {% if not is_demo_admin and (model_view.can_delete or model_view._custom_actions_in_list) %}
                   <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
                     {% if model_view.can_delete %}
                     <a class="dropdown-item" id="action-delete" href="#" data-name="{{ model_view.name }}"
@@ -92,7 +93,7 @@
                 <thead>
                   <tr>
                     <th class="w-1"><input class="form-check-input m-0 align-middle" type="checkbox" aria-label="Выбрать все"
-                        id="select-all"></th>
+                        {% if is_demo_admin %}disabled{% endif %} id="select-all"></th>
                     <th class="w-1"></th>
                     {% for name in model_view._list_prop_names %}
                     {% set label = model_view._column_labels.get(name, name) %}
@@ -119,7 +120,8 @@
                   <tr>
                     <td>
                       <input type="hidden" value="{{ get_object_identifier(row) }}">
-                      <input class="form-check-input m-0 align-middle select-box" type="checkbox" aria-label="Выбрать запись">
+                      <input class="form-check-input m-0 align-middle select-box" type="checkbox" aria-label="Выбрать запись"
+                        {% if is_demo_admin %}disabled{% endif %}>
                     </td>
                     <td class="text-end">
                       {% if model_view.can_view_details %}
@@ -128,13 +130,13 @@
                         <span class="me-1"><i class="fa-solid fa-eye"></i></span>
                       </a>
                       {% endif %}
-                      {% if model_view.can_edit %}
+                      {% if model_view.can_edit and not is_demo_admin %}
                       <a href="{{ model_view._build_url_for('admin:edit', request, row) }}" data-bs-toggle="tooltip"
                         data-bs-placement="top" title="Редактировать">
                         <span class="me-1"><i class="fa-solid fa-pen-to-square"></i></span>
                       </a>
                       {% endif %}
-                      {% if model_view.can_delete %}
+                      {% if model_view.can_delete and not is_demo_admin %}
                       <a href="#" data-name="{{ model_view.name }}" data-pk="{{ get_object_identifier(row) }}"
                         data-url="{{ model_view._url_for_delete(request, row) }}" data-bs-toggle="modal"
                         data-bs-target="#modal-delete" title="Удалить">
@@ -245,10 +247,11 @@
       </div>
     </div>
   </div>
-  {% if model_view.can_delete %}
+  {% if model_view.can_delete and not is_demo_admin %}
   {% include 'sqladmin/modals/delete.html' %}
   {% endif %}
 
+  {% if not is_demo_admin %}
   {% for custom_action in model_view._custom_actions_in_list %}
   {% if custom_action in model_view._custom_actions_confirmation %}
   {% with confirmation_message = model_view._custom_actions_confirmation[custom_action], custom_action=custom_action,
@@ -257,5 +260,6 @@
   {% endwith %}
   {% endif %}
   {% endfor %}
+  {% endif %}
 </div>
 {% endblock %}

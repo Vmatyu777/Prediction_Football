@@ -170,8 +170,11 @@ Current design decision: exact score must not drive the final system because it 
 - Unknown FastAPI routes use browser-aware error handling: browsers receive a Russian HTML 404 page with navigation links, while API clients continue to receive JSON `{"detail":"Not Found"}` responses. SQLAdmin-specific unknown routes are left to SQLAdmin/Starlette.
 - SQLAdmin administration panel is mounted at `/admin` through `src/api/admin/`. It uses separate session-based admin authentication and must not change or replace the Android JWT auth flow.
 - Admin panel access is restricted to users with the `admin` role. Public registration must continue to create regular users only; the first admin is created by promoting an existing trusted user through a controlled database/admin process.
+- SQLAdmin defense demo mode is controlled by `PREDICTION_FOOTBALL_ADMIN_DEMO_ENABLED`. Demo access uses a signed session flag, does not create a database user, does not require or store a demo password, and must remain read-only.
+- Demo SQLAdmin sessions may show only the main demonstration views: users, matches, match results, predictions, user query history, models, model metrics, countries, leagues, seasons, and teams. Technical or high-volume views must stay hidden from demo sessions.
 - SQLAdmin Users view must never display `password_hash`. Users may be viewed, searched, filtered, and have only their role edited.
 - User deletion is not allowed in SQLAdmin.
+- SQLAdmin demo sessions must not create, edit, delete, export, run custom actions, or change user roles.
 - SQLAdmin must not allow dangerous CRUD for predictions, user query history, matches, football domain data, model metadata, metrics, odds, or reference tables unless explicitly requested and carefully reviewed.
 - SQLAdmin must not allow an admin to demote their own role or remove the last remaining admin user.
 - Admin-triggered sync, sync logs, and monthly retraining automation are future work.

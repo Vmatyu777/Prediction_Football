@@ -7,7 +7,7 @@ from sqlalchemy.orm import selectinload
 from sqladmin import ModelView
 from sqladmin.filters import BooleanFilter, ForeignKeyFilter, StaticValuesFilter
 
-from src.api.admin.auth import ADMIN_SESSION_USER_ID_KEY
+from src.api.admin.auth import ADMIN_SESSION_USER_ID_KEY, is_demo_admin_session
 from src.api.database.models import (
     Bookmaker,
     Country,
@@ -73,6 +73,21 @@ def format_history_prediction(history: UserQueryHistory, _attribute: Any) -> str
     return format_prediction_label(history.__dict__.get("prediction"))
 
 
+DEMO_ADMIN_VISIBLE_IDENTITIES = {
+    "user",
+    "match",
+    "match-result",
+    "prediction",
+    "user-query-history",
+    "model",
+    "model-metric",
+    "country",
+    "league",
+    "season",
+    "team",
+}
+
+
 class SecureModelView(ModelView):
     can_create = False
     can_edit = False
@@ -81,6 +96,31 @@ class SecureModelView(ModelView):
     can_export = True
     page_size = 50
     page_size_options = [25, 50, 100]
+
+    def is_visible(self, request) -> bool:
+        if is_demo_admin_session(request):
+            return self.identity in DEMO_ADMIN_VISIBLE_IDENTITIES
+        return super().is_visible(request)
+
+    def is_accessible(self, request) -> bool:
+        if is_demo_admin_session(request):
+            return self.identity in DEMO_ADMIN_VISIBLE_IDENTITIES
+        return super().is_accessible(request)
+
+    async def insert_model(self, request, data: dict) -> Any:
+        if is_demo_admin_session(request):
+            raise PermissionError("Demo mode is read-only")
+        return await super().insert_model(request, data)
+
+    async def update_model(self, request, pk: str, data: dict) -> Any:
+        if is_demo_admin_session(request):
+            raise PermissionError("Demo mode is read-only")
+        return await super().update_model(request, pk, data)
+
+    async def delete_model(self, request, pk: Any) -> None:
+        if is_demo_admin_session(request):
+            raise PermissionError("Demo mode is read-only")
+        await super().delete_model(request, pk)
 
 
 class UserAdmin(SecureModelView, model=User):

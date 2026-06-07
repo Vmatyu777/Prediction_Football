@@ -1,5 +1,6 @@
 {% extends "sqladmin/layout.html" %}
 {% block content %}
+{% set is_demo_admin = request.session.get("admin_demo") %}
 <div class="col-12">
   <div class="card">
     <div class="card-header">
@@ -54,7 +55,7 @@
               Назад
             </a>
           </div>
-          {% if model_view.can_delete %}
+          {% if model_view.can_delete and not is_demo_admin %}
           <div class="col-md-1">
             <a href="#" data-name="{{ model_view.name }}" data-pk="{{ get_object_identifier(model) }}"
               data-url="{{ model_view._url_for_delete(request, model) }}" data-bs-toggle="modal"
@@ -63,13 +64,14 @@
             </a>
           </div>
           {% endif %}
-          {% if model_view.can_edit %}
+          {% if model_view.can_edit and not is_demo_admin %}
           <div class="col-md-1">
             <a href="{{ model_view._build_url_for('admin:edit', request, model) }}" class="btn btn-primary">
               Редактировать
             </a>
           </div>
           {% endif %}
+          {% if not is_demo_admin %}
           {% for custom_action,label in model_view._custom_actions_in_detail.items() %}
           <div class="col-md-1">
             {% if custom_action in model_view._custom_actions_confirmation %}
@@ -85,15 +87,17 @@
             {% endif %}
           </div>
           {% endfor %}
+          {% endif %}
         </div>
       </div>
     </div>
   </div>
 </div>
-{% if model_view.can_delete %}
+{% if model_view.can_delete and not is_demo_admin %}
 {% include 'sqladmin/modals/delete.html' %}
 {% endif %}
 
+{% if not is_demo_admin %}
 {% for custom_action in model_view._custom_actions_in_detail %}
 {% if custom_action in model_view._custom_actions_confirmation %}
 {% with confirmation_message = model_view._custom_actions_confirmation[custom_action], custom_action=custom_action,
@@ -102,5 +106,6 @@ url=model_view._url_for_action(request, custom_action) + '?pks=' + (get_object_i
 {% endwith %}
 {% endif %}
 {% endfor %}
+{% endif %}
 
 {% endblock %}

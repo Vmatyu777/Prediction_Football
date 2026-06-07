@@ -22,6 +22,14 @@ DATABASE_URL = os.getenv("DATABASE_URL", DEFAULT_DATABASE_URL)
 BACKUP_DIR = PROJECT_ROOT / os.getenv("BACKUP_DIR", "backups")
 BACKUP_FILE_TEMPLATE = os.getenv("BACKUP_FILE_TEMPLATE", "football_backup_%Y%m%d_%H%M%S.sql")
 
+
+def _env_bool(name: str, default: bool) -> bool:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
 APP_TITLE = "Prediction Football API"
 APP_VERSION = "0.1.0"
 
@@ -29,18 +37,12 @@ AUTH_SECRET_KEY = os.getenv("PREDICTION_FOOTBALL_AUTH_SECRET", "change-this-deve
 AUTH_ALGORITHM = "HS256"
 AUTH_ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("PREDICTION_FOOTBALL_TOKEN_MINUTES", "1440"))
 ADMIN_SESSION_SECRET = os.getenv("PREDICTION_FOOTBALL_ADMIN_SESSION_SECRET", AUTH_SECRET_KEY)
+ADMIN_DEMO_ENABLED = _env_bool("PREDICTION_FOOTBALL_ADMIN_DEMO_ENABLED", True)
 
 API_FOOTBALL_API_KEY = os.getenv("API_FOOTBALL_API_KEY", "")
 API_FOOTBALL_BASE_URL = os.getenv("API_FOOTBALL_BASE_URL", "https://v3.football.api-sports.io")
 API_FOOTBALL_TIMEOUT_SECONDS = float(os.getenv("API_FOOTBALL_TIMEOUT_SECONDS", "20"))
 API_FOOTBALL_SEASON = int(os.getenv("API_FOOTBALL_SEASON", "2026"))
-
-
-def _env_bool(name: str, default: bool) -> bool:
-    value = os.getenv(name)
-    if value is None:
-        return default
-    return value.strip().lower() in {"1", "true", "yes", "on"}
 
 
 API_FOOTBALL_SCHEDULER_ENABLED = _env_bool("API_FOOTBALL_SCHEDULER_ENABLED", True)

@@ -71,6 +71,25 @@ SQLAdmin login:
 https://prediction-football.ru/admin/login
 ```
 
+The SQLAdmin login page includes a passwordless defense demo mode when the production `.env` keeps:
+
+```env
+PREDICTION_FOOTBALL_ADMIN_DEMO_ENABLED=true
+```
+
+The demo session is read-only, uses the signed SQLAdmin session cookie, does not create a database user, and exposes only the main demonstration views. Disable it after the defense by setting:
+
+```env
+PREDICTION_FOOTBALL_ADMIN_DEMO_ENABLED=false
+```
+
+Then redeploy with:
+
+```bash
+cd /root/Prediction_Football
+docker compose up -d --build
+```
+
 ## Certificate Renewal
 
 Check Certbot renewal with:

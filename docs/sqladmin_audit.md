@@ -407,3 +407,39 @@ The compact list view includes all database columns.
 - `users` remains restricted: password hashes are not exposed, user deletion is disabled, and only role editing is enabled.
 - Prediction, football domain, model metadata, metrics, odds, and reference data remain read-only unless explicitly reviewed later.
 - Detail views are intentionally more complete than list views where tables can be wide or operationally dense.
+
+## Defense Demo Mode
+
+The `/admin/login` page includes a passwordless defense demo mode when `PREDICTION_FOOTBALL_ADMIN_DEMO_ENABLED=true`.
+
+Demo access is implemented as a signed SQLAdmin session flag. It does not create a database user, does not store a demo password, and does not use Android JWT authentication.
+
+Demo-visible views:
+
+- `users`
+- `matches`
+- `match_results`
+- `predictions`
+- `user_query_history`
+- `models`
+- `model_metrics`
+- `countries`
+- `leagues`
+- `seasons`
+- `teams`
+
+Hidden from demo sessions:
+
+- `user_roles`
+- `odds`
+- `prediction_characteristic_values`
+- `team_elo_ratings`
+- `metrics`
+- `model_types`
+- `match_sources`
+- `external_sources`
+- `bookmakers`
+- `prediction_characteristics`
+- `match_statuses`
+
+Demo sessions are read-only at both UI and route levels. Create, edit, delete, export, and custom action routes are blocked for demo sessions, including the Users role-edit form.

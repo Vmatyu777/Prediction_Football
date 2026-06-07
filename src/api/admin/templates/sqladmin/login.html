@@ -1,7 +1,8 @@
 {% extends "sqladmin/base.html" %}
 {% block body %}
 <div class="d-flex align-items-center justify-content-center vh-100">
-  <form class="col-lg-4 col-md-6 card card-md" action="{{ url_for('admin:login') }}" method="POST" autocomplete="off">
+  <div class="col-lg-4 col-md-6">
+  <form class="card card-md" action="{{ url_for('admin:login') }}" method="POST" autocomplete="off">
     <div class="card-body">
       <h2 class="card-title text-center mb-4">Вход в административную панель</h2>
       <div class="mb-3">
@@ -34,6 +35,17 @@
       </div>
     </div>
   </form>
+  <form class="card card-md mt-3" action="{{ url_for('admin:login') }}" method="POST" autocomplete="off">
+    <div class="card-body">
+      <h3 class="card-title mb-2">Демо-доступ для комиссии</h3>
+      <p class="text-muted mb-3">
+        Режим только для просмотра основных данных проекта без возможности создания, изменения или удаления записей.
+      </p>
+      <input type="hidden" name="demo_mode" value="1">
+      <button type="submit" class="btn btn-outline-primary w-100">Войти в демо-режим</button>
+    </div>
+  </form>
+  </div>
 </div>
 
 <script>

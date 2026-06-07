@@ -615,9 +615,18 @@ The first administrator is created by promoting an existing trusted user, for ex
 The admin panel currently provides:
 
 - a localized login/logout flow;
+- a passwordless defense demo mode for the examination committee;
 - a dashboard with operational counters for users, matches, predictions, recent activity, and lightweight CSS charts;
 - list, detail, filter, pagination, and export views for users, football data, predictions, model metadata, and reference tables;
 - readable foreign-key display for seasons, leagues, teams, matches, models, predictions, and user history.
+
+The demo mode is enabled by `PREDICTION_FOOTBALL_ADMIN_DEMO_ENABLED=true`, which is the default for the defense deployment. The `/admin/login` page shows a `Войти в демо-режим` button that creates a signed SQLAdmin demo session without storing a demo password or creating a database user. Demo sessions are read-only and are intended only for diploma demonstration. Disable the button after the defense by setting:
+
+```env
+PREDICTION_FOOTBALL_ADMIN_DEMO_ENABLED=false
+```
+
+Demo sessions can see only the main demonstration views: Users, Matches, MatchResults, Predictions, UserQueryHistory, Models, ModelMetrics, Countries, Leagues, Seasons, and Teams. Technical or dense views such as Odds, TeamEloRatings, ExternalSources, MatchSources, MatchStatuses, ModelTypes, Metrics, PredictionCharacteristics, PredictionCharacteristicValues, Bookmakers, and UserRoles are hidden from the demo menu and blocked by SQLAdmin access checks.
 
 The first implementation intentionally avoids dangerous CRUD:
 
@@ -626,6 +635,7 @@ The first implementation intentionally avoids dangerous CRUD:
 - user deletion is disabled;
 - Match, MatchResult, Odds, Prediction, PredictionCharacteristicValue, UserQueryHistory, Models, ModelMetrics, and reference tables are read-only;
 - Predictions and user history cannot be created, edited, or deleted through the admin panel.
+- Demo sessions cannot create, edit, delete, export, or run custom actions in any SQLAdmin view, including the Users role form.
 
 Role-editing protection is enforced in the Users admin view:
 

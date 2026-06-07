@@ -313,8 +313,8 @@ The FastAPI backend mounts a SQLAdmin administration panel at `/admin`. It is in
 
 The admin package is structured as follows:
 
-- `src/api/admin/auth.py`: session login/logout/authentication for `/admin`, reusing the existing `authenticate_user()` helper and requiring the `admin` role.
-- `src/api/admin/setup.py`: SQLAdmin registration, `/admin` mount configuration, dashboard registration, and view registration.
+- `src/api/admin/auth.py`: session login/logout/authentication for `/admin`, reusing the existing `authenticate_user()` helper and requiring the `admin` role for real administrators. It also creates a separate passwordless signed demo session when `PREDICTION_FOOTBALL_ADMIN_DEMO_ENABLED=true`.
+- `src/api/admin/setup.py`: SQLAdmin registration, `/admin` mount configuration, dashboard registration, view registration, and route-level demo guards for create/edit/delete/export endpoints.
 - `src/api/admin/dashboard.py`: operational dashboard with total users, users in the last 7 days, total matches, upcoming matches, total predictions, predictions in the last 7 days, latest predictions, and latest user query history.
 - `src/api/admin/views.py`: SQLAdmin model views, Russian labels, safe list/detail/filter/export configuration, foreign-key display helpers, read-only rules, hidden password hashes, and admin role protection.
 - `src/api/admin/templates/`: localized template overrides for login, layout, list, detail, edit, and dashboard pages. The overrides translate user-facing UI strings while leaving SQLAdmin core unchanged.
@@ -323,12 +323,15 @@ The enabled views cover Users, UserRoles, Matches, MatchResults, Odds, Predictio
 
 The first administrator is created by promoting an existing trusted user in the database or through a controlled admin process; public registration creates regular users only. In the local development database, `Vova777` was promoted to `admin` for verification.
 
+The defense demo mode is available from `/admin/login` through the `Войти в демо-режим` button. It does not create a database user and does not require or store a demo password. Demo sessions are read-only and show only the main demonstration views: Users, Matches, MatchResults, Predictions, UserQueryHistory, Models, ModelMetrics, Countries, Leagues, Seasons, and Teams. Technical or high-volume views are hidden and blocked for demo sessions. Disable the mode after the defense with `PREDICTION_FOOTBALL_ADMIN_DEMO_ENABLED=false`.
+
 Safety constraints:
 
 - `password_hash` is not displayed in the Users view.
 - Users can be viewed, searched, filtered, and have only their role edited.
 - User deletion is disabled.
 - Matches, predictions, user query history, model metadata, metrics, odds, and reference tables are read-only in the first admin-panel stage.
+- Demo sessions cannot create, edit, delete, export, or run custom actions, including user role changes.
 - Administrators cannot demote their own role.
 - The last remaining administrator cannot be demoted.
 
