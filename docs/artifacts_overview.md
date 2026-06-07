@@ -14,6 +14,8 @@ This document gives a short engineering overview of the current project artifact
 - `docker-compose.yml` defines the production-like local stack with PostgreSQL 16 and the FastAPI backend service. The backend service connects to PostgreSQL through the internal Docker network using the `postgres` hostname.
 - The deployed VPS backend is served at `https://prediction-football.ru/` through Nginx reverse proxy and Let's Encrypt TLS. Nginx redirects HTTP port 80 to HTTPS port 443 and proxies requests to the Dockerized backend on `http://127.0.0.1:8000`.
 - `docs/vps_deployment.md` documents the production deployment flow, ignored runtime artifacts, Certbot renewal check, and status policy.
+- `docs/sqladmin_audit.md` documents the current SQLAdmin model-field audit.
+- `docs/assets/qr_prediction_football.png` is a QR code that opens the production landing page at `https://prediction-football.ru/`.
 - API-FOOTBALL / API-SPORTS is the selected single external source for future fixtures, results, match statistics, and odds. Its API key is a local `.env` value and must not be committed.
 - `android_app/` contains the Android tablet MVP client. It is a Kotlin + Jetpack Compose thin client that calls FastAPI through Retrofit and does not run ML models, calculate ML features, or access any database directly.
 - `requirements.txt` pins the Python runtime dependencies used by the backend, model loading, and auth flow.
@@ -317,7 +319,7 @@ The admin package is structured as follows:
 - `src/api/admin/views.py`: SQLAdmin model views, Russian labels, safe list/detail/filter/export configuration, foreign-key display helpers, read-only rules, hidden password hashes, and admin role protection.
 - `src/api/admin/templates/`: localized template overrides for login, layout, list, detail, edit, and dashboard pages. The overrides translate user-facing UI strings while leaving SQLAdmin core unchanged.
 
-The enabled views cover Users, UserRoles, Matches, MatchResults, Odds, Predictions, PredictionCharacteristicValues, UserQueryHistory, Models, ModelMetrics, Countries, Leagues, Seasons, Teams, Metrics, ModelTypes, MatchSources, ExternalSources, Bookmakers, PredictionCharacteristics, and MatchStatuses.
+The enabled views cover Users, UserRoles, Matches, MatchResults, Odds, Predictions, PredictionCharacteristicValues, UserQueryHistory, Models, ModelMetrics, Countries, Leagues, Seasons, Teams, TeamEloRatings, Metrics, ModelTypes, MatchSources, ExternalSources, Bookmakers, PredictionCharacteristics, and MatchStatuses.
 
 The first administrator is created by promoting an existing trusted user in the database or through a controlled admin process; public registration creates regular users only. In the local development database, `Vova777` was promoted to `admin` for verification.
 
@@ -334,7 +336,7 @@ Known limitation: when a protected role update is rejected, SQLAdmin displays th
 
 Endpoints:
 
-- `GET /` returns the Russian production landing page with links to `/health`, `/docs`, and `/admin/login`.
+- `GET /` returns the Russian production landing page with labeled navigation links to `/`, `/health`, `/docs`, and `/admin/login`.
 - `GET /health` returns service status.
 - `GET /db/health` checks configured database connectivity and should report `database=postgresql` in PostgreSQL mode.
 - `GET /scheduler/health` returns scheduler enabled/running state and next run times without changing existing health schemas.
@@ -355,7 +357,9 @@ Endpoints:
 - `POST /predict/{match_id}` builds runtime features from SQL database data, runs final models, reconciles outputs, stores prediction rows, and returns the final prediction.
 - `GET /predictions/{prediction_id}` returns a persisted prediction with characteristic values.
 
-Unknown FastAPI routes use browser-aware error handling: browser requests with `Accept: text/html` receive a Russian HTML 404 page, while API clients continue to receive the JSON response `{"detail":"Not Found"}`. Unknown SQLAdmin routes remain handled by SQLAdmin/Starlette to avoid customizing SQLAdmin internals.
+Unknown FastAPI routes use browser-aware error handling: browser requests with `Accept: text/html` receive a Russian HTML 404 page with links back to `/`, `/docs`, and `/admin/login`, while API clients continue to receive the JSON response `{"detail":"Not Found"}`. Unknown SQLAdmin routes remain handled by SQLAdmin/Starlette to avoid customizing SQLAdmin internals.
+
+Swagger UI remains available at `/docs`. Its technical endpoint list is not translated, but the page includes a simple link back to `/` for production navigation during demonstration.
 
 ## Database Layer
 

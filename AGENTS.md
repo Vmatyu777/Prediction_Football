@@ -144,6 +144,8 @@ Current design decision: exact score must not drive the final system because it 
 - The backend Docker service starts with `uvicorn src.api.main:app --host 0.0.0.0 --port 8000` and connects to PostgreSQL through the Docker network using the `postgres` hostname.
 - Production is served at `https://prediction-football.ru/` through Nginx reverse proxy and Let's Encrypt certificates. Public HTTP traffic on port 80 redirects to HTTPS on port 443, and Nginx proxies requests to the Dockerized backend on `http://127.0.0.1:8000`.
 - VPS deployment notes are tracked in `docs/vps_deployment.md`. The intended deployment flow is `git pull` followed by `docker compose up -d --build` from `/root/Prediction_Football`.
+- The production QR code for `https://prediction-football.ru/` is tracked at `docs/assets/qr_prediction_football.png`.
+- SQLAdmin field coverage is tracked in `docs/sqladmin_audit.md`.
 - Before changing the VPS deployment directory, back up `.env`, `models/final_app/`, `data/raw/`, `data/interim/`, and optional `backups/` or `reports/` artifacts.
 - The backend must load tracked metadata from `configs/final_app_models.json` and local model binaries from `models/final_app/`.
 - Match-based prediction uses SQL database-backed runtime feature generation; do not retrain models or change final ML configurations from the API layer.
@@ -165,7 +167,7 @@ Current design decision: exact score must not drive the final system because it 
 - Scheduler windows are intentionally small to reduce API usage and respect free-tier limits. `API_FOOTBALL_MAX_SYNC_FIXTURES` defaults to `25`, so worst-case daily usage is about 80 requests.
 - `API_FOOTBALL_SEASON=2026` is the target app season, but API-FOOTBALL free plans may not expose that season yet; use an available season for local API checks if needed.
 - Scheduler health is exposed through `GET /scheduler/health`; existing `/health` and `/db/health` schemas must remain unchanged.
-- Unknown FastAPI routes use browser-aware error handling: browsers receive a Russian HTML 404 page, while API clients continue to receive JSON `{"detail":"Not Found"}` responses. SQLAdmin-specific unknown routes are left to SQLAdmin/Starlette.
+- Unknown FastAPI routes use browser-aware error handling: browsers receive a Russian HTML 404 page with navigation links, while API clients continue to receive JSON `{"detail":"Not Found"}` responses. SQLAdmin-specific unknown routes are left to SQLAdmin/Starlette.
 - SQLAdmin administration panel is mounted at `/admin` through `src/api/admin/`. It uses separate session-based admin authentication and must not change or replace the Android JWT auth flow.
 - Admin panel access is restricted to users with the `admin` role. Public registration must continue to create regular users only; the first admin is created by promoting an existing trusted user through a controlled database/admin process.
 - SQLAdmin Users view must never display `password_hash`. Users may be viewed, searched, filtered, and have only their role edited.

@@ -518,6 +518,14 @@ curl https://prediction-football.ru/models
 curl https://prediction-football.ru/scheduler/health
 ```
 
+The production landing page is intended for diploma demonstration and navigation. It links to the root page, health check, Swagger UI, and SQLAdmin login. The tracked QR code for opening the production landing page is stored at:
+
+```text
+docs/assets/qr_prediction_football.png
+```
+
+Swagger UI is available at `/docs` and includes a simple link back to the landing page. Endpoint names and technical API schemas remain unchanged.
+
 The SQLAdmin panel is available at:
 
 ```text
@@ -525,6 +533,12 @@ https://prediction-football.ru/admin/login
 ```
 
 SQLAdmin is still backend-only administration. It does not replace Android JWT authentication and is not used by the mobile client.
+
+The current SQLAdmin field audit is tracked in:
+
+```text
+docs/sqladmin_audit.md
+```
 
 Detailed VPS deployment notes are tracked in:
 

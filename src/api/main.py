@@ -5,6 +5,7 @@ from datetime import date
 import logging
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Request, status
+from fastapi.openapi.docs import get_swagger_ui_html
 from fastapi.responses import HTMLResponse, JSONResponse
 from sqlalchemy import text
 from starlette.exceptions import HTTPException as StarletteHTTPException
@@ -74,7 +75,7 @@ async def lifespan(app: FastAPI):
         shutdown_scheduler()
 
 
-app = FastAPI(title=APP_TITLE, version=APP_VERSION, lifespan=lifespan)
+app = FastAPI(title=APP_TITLE, version=APP_VERSION, lifespan=lifespan, docs_url=None)
 setup_admin(app)
 
 
@@ -88,8 +89,21 @@ def _production_page(
     heading: str,
     description: str,
     badge: str,
+    lead_label: str = "Доступные разделы:",
+    links: list[tuple[str, str, str]] | None = None,
     status_code: int = 200,
 ) -> HTMLResponse:
+    if links is None:
+        links = [
+            ("/", "Главная", "Общая информация о системе"),
+            ("/health", "Проверка состояния", "Быстрая проверка доступности backend"),
+            ("/docs", "Документация API", "Swagger UI для проверки endpoints"),
+            ("/admin/login", "Административная панель", "SQLAdmin для управления данными"),
+        ]
+    nav_links = "\n".join(
+        f'      <a href="{href}"><span>{label}</span><code>{href}</code><small>{hint}</small></a>'
+        for href, label, hint in links
+    )
     html = f"""
 <!doctype html>
 <html lang="ru">
@@ -160,7 +174,7 @@ def _production_page(
     }}
     nav {{
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
       gap: 12px;
       margin-top: 24px;
     }}
@@ -172,6 +186,23 @@ def _production_page(
       color: var(--text);
       text-decoration: none;
       background: #0b1911;
+    }}
+    a span {{
+      display: block;
+      font-weight: 700;
+    }}
+    a code {{
+      display: block;
+      margin-top: 6px;
+      color: var(--accent);
+      font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+      font-size: 0.95rem;
+    }}
+    a small {{
+      display: block;
+      margin-top: 8px;
+      color: var(--muted);
+      line-height: 1.35;
     }}
     a:hover, a:focus {{
       border-color: var(--accent);
@@ -185,12 +216,9 @@ def _production_page(
     <h1>{heading}</h1>
     <p>{description}</p>
     <div class="status">{badge}</div>
-    <p>Доступные разделы:</p>
+    <p>{lead_label}</p>
     <nav aria-label="Доступные разделы">
-      <a href="/">/</a>
-      <a href="/health">/health</a>
-      <a href="/docs">/docs</a>
-      <a href="/admin/login">/admin/login</a>
+{nav_links}
     </nav>
   </main>
 </body>
@@ -204,9 +232,15 @@ async def http_exception_handler(request: Request, exc: StarletteHTTPException):
     if exc.status_code == 404 and _is_browser_html_request(request) and not request.url.path.startswith("/admin"):
         return _production_page(
             title="Страница не найдена",
-            heading="Система прогнозирования футбольных матчей",
-            description="Страница не найдена",
-            badge="Ошибка 404",
+            heading="Страница не найдена",
+            description="Запрошенный адрес отсутствует в системе",
+            badge="Система прогнозирования футбольных матчей",
+            lead_label="Выберите доступный раздел:",
+            links=[
+                ("/", "Вернуться на главную", "Общая информация о системе"),
+                ("/docs", "Документация API", "Swagger UI для проверки endpoints"),
+                ("/admin/login", "Административная панель", "SQLAdmin для управления данными"),
+            ],
             status_code=404,
         )
     return JSONResponse(
@@ -224,6 +258,23 @@ def landing_page() -> HTMLResponse:
         description="Информационная система машинного обучения для прогнозирования результатов футбольных матчей",
         badge="Статус системы: работает",
     )
+
+
+@app.get("/docs", include_in_schema=False)
+def custom_swagger_ui() -> HTMLResponse:
+    response = get_swagger_ui_html(
+        openapi_url=app.openapi_url,
+        title="Документация API",
+        swagger_favicon_url="https://fastapi.tiangolo.com/img/favicon.png",
+    )
+    html = response.body.decode("utf-8")
+    home_link = """
+<div style="padding: 12px 20px; background: #0f1f16; border-bottom: 1px solid #263a2d;">
+  <a href="/" style="color: #9be15d; font-family: sans-serif; font-weight: 700; text-decoration: none;">← На главную</a>
+</div>
+"""
+    html = html.replace("<body>", f"<body>{home_link}", 1)
+    return HTMLResponse(content=html)
 
 
 @app.get("/health", response_model=HealthResponse)

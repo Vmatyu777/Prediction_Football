@@ -27,6 +27,7 @@ from src.api.database.models import (
     PredictionCharacteristicValue,
     Season,
     Team,
+    TeamEloRating,
     User,
     UserQueryHistory,
     UserRole,
@@ -532,6 +533,36 @@ class TeamAdmin(SecureModelView, model=Team):
     column_filters = [ForeignKeyFilter(Team.country_id, Country.name, title="Страна")]
 
 
+class TeamEloRatingAdmin(SecureModelView, model=TeamEloRating):
+    name = "Рейтинг ELO команды"
+    name_plural = "Рейтинги ELO команд"
+    icon = "fa-solid fa-chart-line"
+    category = "Футбольные данные"
+    column_list = [
+        TeamEloRating.id,
+        TeamEloRating.rating_date,
+        TeamEloRating.team,
+        TeamEloRating.elo_value,
+    ]
+    column_details_list = [
+        TeamEloRating.id,
+        TeamEloRating.rating_date,
+        TeamEloRating.team,
+        TeamEloRating.team_id,
+        TeamEloRating.elo_value,
+    ]
+    column_labels = {
+        TeamEloRating.id: "ID",
+        TeamEloRating.rating_date: "Дата рейтинга",
+        TeamEloRating.team: "Команда",
+        TeamEloRating.team_id: "ID команды",
+        TeamEloRating.elo_value: "ELO",
+    }
+    column_sortable_list = [TeamEloRating.id, TeamEloRating.rating_date, TeamEloRating.elo_value]
+    column_default_sort = [(TeamEloRating.rating_date, True), (TeamEloRating.id, True)]
+    column_filters = [ForeignKeyFilter(TeamEloRating.team_id, Team.name, title="Команда")]
+
+
 class MetricAdmin(SecureModelView, model=Metric):
     name = "Метрика"
     name_plural = "Метрики"
@@ -631,6 +662,7 @@ ADMIN_VIEWS = [
     LeagueAdmin,
     SeasonAdmin,
     TeamAdmin,
+    TeamEloRatingAdmin,
     MetricAdmin,
     ModelTypeAdmin,
     MatchSourceAdmin,

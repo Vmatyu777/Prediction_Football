@@ -83,14 +83,39 @@ The production certificate is renewed by Certbot's system timer.
 
 ## Production UI And Error Handling
 
-The root route `/` returns a small Russian HTML landing page for browser users.
+The root route `/` returns a small Russian HTML landing page for browser users. It provides labeled navigation links to:
+
+- `/`
+- `/health`
+- `/docs`
+- `/admin/login`
+
+The QR code for defense/demo access is tracked at:
+
+```text
+docs/assets/qr_prediction_football.png
+```
+
+It opens:
+
+```text
+https://prediction-football.ru/
+```
 
 Unknown FastAPI routes use browser-aware 404 handling:
 
-- browser requests with `Accept: text/html` receive a Russian HTML 404 page;
+- browser requests with `Accept: text/html` receive a Russian HTML 404 page with links to `/`, `/docs`, and `/admin/login`;
 - API clients continue to receive the JSON response `{"detail":"Not Found"}`.
 
 SQLAdmin remains mounted at `/admin`. Unknown SQLAdmin routes are left to SQLAdmin/Starlette so the admin package is not customized beyond project-local templates and reverse proxy behavior.
+
+Swagger UI remains available at `/docs`. The page includes a simple `← На главную` link for demo navigation, while endpoint names and technical schemas remain unchanged.
+
+The SQLAdmin field audit is tracked at:
+
+```text
+docs/sqladmin_audit.md
+```
 
 ## Status Policy
 
