@@ -4,9 +4,10 @@ from contextlib import asynccontextmanager
 from datetime import date
 import logging
 
-from fastapi import Depends, FastAPI, HTTPException, Query, status
-from fastapi.responses import HTMLResponse
+from fastapi import Depends, FastAPI, HTTPException, Query, Request, status
+from fastapi.responses import HTMLResponse, JSONResponse
 from sqlalchemy import text
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from src.api.config import APP_TITLE, APP_VERSION
 from src.api.admin import setup_admin
@@ -77,17 +78,28 @@ app = FastAPI(title=APP_TITLE, version=APP_VERSION, lifespan=lifespan)
 setup_admin(app)
 
 
-@app.get("/", response_class=HTMLResponse, include_in_schema=False)
-def landing_page() -> HTMLResponse:
-    html = """
+def _is_browser_html_request(request: Request) -> bool:
+    accept = request.headers.get("accept", "")
+    return "text/html" in accept.lower()
+
+
+def _production_page(
+    title: str,
+    heading: str,
+    description: str,
+    badge: str,
+    status_code: int = 200,
+) -> HTMLResponse:
+    html = f"""
 <!doctype html>
-<html lang="en">
+<html lang="ru">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Prediction Football API</title>
+  <meta name="description" content="Информационная система машинного обучения для прогнозирования результатов футбольных матчей">
+  <title>{title}</title>
   <style>
-    :root {
+    :root {{
       color-scheme: dark;
       --bg: #07120d;
       --panel: #0f1f16;
@@ -95,9 +107,9 @@ def landing_page() -> HTMLResponse:
       --muted: #a7b7ad;
       --accent: #9be15d;
       --border: #263a2d;
-    }
-    * { box-sizing: border-box; }
-    body {
+    }}
+    * {{ box-sizing: border-box; }}
+    body {{
       margin: 0;
       min-height: 100vh;
       display: grid;
@@ -106,27 +118,27 @@ def landing_page() -> HTMLResponse:
       background: radial-gradient(circle at top, #17351f 0, var(--bg) 52%);
       color: var(--text);
       font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    }
-    main {
-      width: min(720px, 100%);
+    }}
+    main {{
+      width: min(760px, 100%);
       padding: 36px;
       border: 1px solid var(--border);
       border-radius: 8px;
       background: rgba(15, 31, 22, 0.94);
       box-shadow: 0 24px 80px rgba(0, 0, 0, 0.35);
-    }
-    h1 {
+    }}
+    h1 {{
       margin: 0 0 10px;
       font-size: clamp(2rem, 5vw, 3.5rem);
       line-height: 1.05;
-    }
-    p {
+    }}
+    p {{
       margin: 0;
       color: var(--muted);
       font-size: 1.05rem;
       line-height: 1.6;
-    }
-    .status {
+    }}
+    .status {{
       display: inline-flex;
       align-items: center;
       gap: 8px;
@@ -137,22 +149,22 @@ def landing_page() -> HTMLResponse:
       color: var(--accent);
       font-weight: 700;
       background: rgba(155, 225, 93, 0.08);
-    }
-    .status::before {
+    }}
+    .status::before {{
       content: "";
       width: 9px;
       height: 9px;
       border-radius: 50%;
       background: var(--accent);
       box-shadow: 0 0 18px var(--accent);
-    }
-    nav {
+    }}
+    nav {{
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
       gap: 12px;
       margin-top: 24px;
-    }
-    a {
+    }}
+    a {{
       display: block;
       padding: 14px 16px;
       border: 1px solid var(--border);
@@ -160,21 +172,22 @@ def landing_page() -> HTMLResponse:
       color: var(--text);
       text-decoration: none;
       background: #0b1911;
-    }
-    a:hover, a:focus {
+    }}
+    a:hover, a:focus {{
       border-color: var(--accent);
       color: var(--accent);
       outline: none;
-    }
+    }}
   </style>
 </head>
 <body>
   <main>
-    <h1>Prediction Football API</h1>
-    <p>Machine Learning Football Prediction System</p>
-    <div class="status">Status: Online</div>
-    <p>Available links:</p>
-    <nav aria-label="Available API links">
+    <h1>{heading}</h1>
+    <p>{description}</p>
+    <div class="status">{badge}</div>
+    <p>Доступные разделы:</p>
+    <nav aria-label="Доступные разделы">
+      <a href="/">/</a>
       <a href="/health">/health</a>
       <a href="/docs">/docs</a>
       <a href="/admin/login">/admin/login</a>
@@ -183,7 +196,34 @@ def landing_page() -> HTMLResponse:
 </body>
 </html>
 """
-    return HTMLResponse(content=html)
+    return HTMLResponse(content=html, status_code=status_code)
+
+
+@app.exception_handler(StarletteHTTPException)
+async def http_exception_handler(request: Request, exc: StarletteHTTPException):
+    if exc.status_code == 404 and _is_browser_html_request(request) and not request.url.path.startswith("/admin"):
+        return _production_page(
+            title="Страница не найдена",
+            heading="Система прогнозирования футбольных матчей",
+            description="Страница не найдена",
+            badge="Ошибка 404",
+            status_code=404,
+        )
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"detail": exc.detail},
+        headers=getattr(exc, "headers", None),
+    )
+
+
+@app.get("/", response_class=HTMLResponse, include_in_schema=False)
+def landing_page() -> HTMLResponse:
+    return _production_page(
+        title="Система прогнозирования футбольных матчей",
+        heading="Система прогнозирования футбольных матчей",
+        description="Информационная система машинного обучения для прогнозирования результатов футбольных матчей",
+        badge="Статус системы: работает",
+    )
 
 
 @app.get("/health", response_model=HealthResponse)

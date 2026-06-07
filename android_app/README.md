@@ -204,6 +204,8 @@ curl https://prediction-football.ru/
 curl https://prediction-football.ru/health
 ```
 
+The Android client remains a thin API client and should use the HTTPS production base URL for deployed builds. Backend landing pages and browser-only HTML 404 pages are not part of the Android API flow; API clients continue to receive JSON error responses.
+
 Build a debug APK against the VPS backend:
 
 ```bash

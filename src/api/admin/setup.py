@@ -20,7 +20,7 @@ def setup_admin(app: FastAPI) -> None:
     admin = Admin(
         app=app,
         engine=engine,
-        title="Админ-панель Prediction Football",
+        title="Административная панель",
         base_url="/admin",
         templates_dir=str(TEMPLATES_DIR),
         authentication_backend=authentication_backend,

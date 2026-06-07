@@ -416,7 +416,7 @@ src/api/
 
 Available endpoints:
 
-- `GET /` returns a small production landing page with links to health, Swagger UI, and SQLAdmin login;
+- `GET /` returns a Russian production landing page with links to health, Swagger UI, and SQLAdmin login;
 - `GET /health`;
 - `GET /db/health`;
 - `GET /models`;
@@ -525,6 +525,26 @@ https://prediction-football.ru/admin/login
 ```
 
 SQLAdmin is still backend-only administration. It does not replace Android JWT authentication and is not used by the mobile client.
+
+Detailed VPS deployment notes are tracked in:
+
+```text
+docs/vps_deployment.md
+```
+
+After the VPS is configured as a Git worktree with a read-only deploy key, the standard production deployment flow is:
+
+```bash
+cd /root/Prediction_Football
+git status
+git pull
+docker compose up -d --build
+docker compose ps
+```
+
+Before changing the VPS worktree or deployment layout, back up the production-only artifacts: `.env`, `models/final_app/`, `data/raw/`, `data/interim/`, and optional `backups/` or `reports/` artifacts.
+
+Unknown FastAPI routes use browser-aware 404 handling: browser requests receive a Russian HTML 404 page, while API clients continue to receive the JSON response `{"detail":"Not Found"}`.
 
 API-FOOTBALL / API-SPORTS is the selected single external source for future fixtures, match results, match statistics, and odds. The API key must be stored only in local `.env` as `API_FOOTBALL_API_KEY`; `.env.example` contains only an empty template value. External API identity is stored through `external_sources` and nullable external fields on `matches` so API-loaded matches can be upserted without duplicates while historical and demo matches can keep `NULL` external ids.
 

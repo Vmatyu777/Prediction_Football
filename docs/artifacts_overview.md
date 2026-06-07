@@ -13,6 +13,7 @@ This document gives a short engineering overview of the current project artifact
 - `.dockerignore` keeps local datasets, model binaries, backups, Android build inputs, and other runtime artifacts out of the backend image context.
 - `docker-compose.yml` defines the production-like local stack with PostgreSQL 16 and the FastAPI backend service. The backend service connects to PostgreSQL through the internal Docker network using the `postgres` hostname.
 - The deployed VPS backend is served at `https://prediction-football.ru/` through Nginx reverse proxy and Let's Encrypt TLS. Nginx redirects HTTP port 80 to HTTPS port 443 and proxies requests to the Dockerized backend on `http://127.0.0.1:8000`.
+- `docs/vps_deployment.md` documents the production deployment flow, ignored runtime artifacts, Certbot renewal check, and status policy.
 - API-FOOTBALL / API-SPORTS is the selected single external source for future fixtures, results, match statistics, and odds. Its API key is a local `.env` value and must not be committed.
 - `android_app/` contains the Android tablet MVP client. It is a Kotlin + Jetpack Compose thin client that calls FastAPI through Retrofit and does not run ML models, calculate ML features, or access any database directly.
 - `requirements.txt` pins the Python runtime dependencies used by the backend, model loading, and auth flow.
@@ -282,6 +283,16 @@ Let's Encrypt certificates are managed by Certbot with the Nginx plugin. Renewal
 certbot renew --dry-run --no-random-sleep-on-renew
 ```
 
+After the VPS directory is configured as a Git worktree with a read-only deploy key, the standard deployment flow is:
+
+```bash
+cd /root/Prediction_Football
+git status
+git pull
+docker compose up -d --build
+docker compose ps
+```
+
 PostgreSQL backup and restore helpers are available:
 
 ```bash
@@ -323,7 +334,7 @@ Known limitation: when a protected role update is rejected, SQLAdmin displays th
 
 Endpoints:
 
-- `GET /` returns the production landing page with links to `/health`, `/docs`, and `/admin/login`.
+- `GET /` returns the Russian production landing page with links to `/health`, `/docs`, and `/admin/login`.
 - `GET /health` returns service status.
 - `GET /db/health` checks configured database connectivity and should report `database=postgresql` in PostgreSQL mode.
 - `GET /scheduler/health` returns scheduler enabled/running state and next run times without changing existing health schemas.
@@ -343,6 +354,8 @@ Endpoints:
 - `GET /matches/showcase` returns historical demonstration examples selected from prediction-quality reports. These examples show strong historical matches for the MVP demo and do not replace aggregate model metrics.
 - `POST /predict/{match_id}` builds runtime features from SQL database data, runs final models, reconciles outputs, stores prediction rows, and returns the final prediction.
 - `GET /predictions/{prediction_id}` returns a persisted prediction with characteristic values.
+
+Unknown FastAPI routes use browser-aware error handling: browser requests with `Accept: text/html` receive a Russian HTML 404 page, while API clients continue to receive the JSON response `{"detail":"Not Found"}`. Unknown SQLAdmin routes remain handled by SQLAdmin/Starlette to avoid customizing SQLAdmin internals.
 
 ## Database Layer
 
