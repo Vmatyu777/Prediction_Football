@@ -142,7 +142,7 @@ Current design decision: exact score must not drive the final system because it 
 - Run for Android emulator/tablet testing with `uvicorn src.api.main:app --host 0.0.0.0 --port 8000 --reload`.
 - Docker deployment preparation is available through `Dockerfile` and `docker-compose.yml`; run both PostgreSQL and FastAPI with `docker compose up -d --build`.
 - The backend Docker service starts with `uvicorn src.api.main:app --host 0.0.0.0 --port 8000` and connects to PostgreSQL through the Docker network using the `postgres` hostname.
-- Production is served at `https://prediction-football.ru/` through Nginx reverse proxy and Let's Encrypt certificates. Public HTTP traffic on port 80 redirects to HTTPS on port 443, and Nginx proxies requests to the Dockerized backend on `http://127.0.0.1:8000`.
+- Production is served at `https://prediction-football.ru/` through Cloudflare Proxy, Nginx reverse proxy, and Let's Encrypt origin certificates. Cloudflare SSL/TLS mode is `Full (strict)`. Nginx proxies requests to the Dockerized backend on `http://127.0.0.1:8000`.
 - VPS deployment notes are tracked in `docs/vps_deployment.md`. The intended deployment flow is `git pull` followed by `docker compose up -d --build` from `/root/Prediction_Football`.
 - The production QR code for `https://prediction-football.ru/` is tracked at `docs/assets/qr_prediction_football.png`.
 - SQLAdmin field coverage is tracked in `docs/sqladmin_audit.md`.

@@ -2,6 +2,157 @@
 
 Diploma project: a machine learning information system for football match prediction with a mobile application.
 
+## Overview
+
+Prediction Football combines a FastAPI backend, PostgreSQL runtime storage, final trained machine-learning models, a SQLAdmin administration panel, and a Kotlin/Jetpack Compose Android MVP client. The system predicts football match outcomes and related betting-style characteristics from historical top-5 European league data.
+
+Public demo:
+
+```text
+https://prediction-football.ru/
+```
+
+The public deployment is served through Cloudflare Proxy, Nginx, Docker Compose, FastAPI, and PostgreSQL. Runtime secrets, trained model binaries, raw datasets, local databases, and backups are intentionally not tracked by Git.
+
+## Features
+
+- Match outcome prediction: `Home Win / Draw / Away Win`.
+- BTTS prediction: `Both Teams To Score`.
+- Goals total prediction: `Over 2.5`.
+- Corners prediction: `Corners > 9.5`.
+- Yellow cards prediction: `Yellow Cards > 3.5`.
+- Exact score prediction as a secondary display layer.
+- Priority-based consistency and reconciliation layer.
+- REST API with FastAPI.
+- PostgreSQL persistence with SQLite local fallback.
+- SQLAdmin administration panel.
+- Android MVP client built with Kotlin and Jetpack Compose.
+- API-FOOTBALL integration scripts for fixtures, odds, results, and statistics sync.
+
+## Architecture
+
+```text
+Android app
+    -> HTTPS REST API
+    -> Cloudflare Proxy
+    -> Nginx reverse proxy
+    -> FastAPI backend
+    -> PostgreSQL
+    -> final ML model binaries under models/final_app/ (local, ignored)
+```
+
+Main backend responsibilities:
+
+- authentication and JWT-protected mobile endpoints;
+- match browsing and prediction endpoints;
+- runtime feature generation from SQL history;
+- final model loading and prediction reconciliation;
+- user prediction history;
+- SQLAdmin dashboard and read-only/demo administration views;
+- scheduled API-FOOTBALL synchronization.
+
+## Technology Stack
+
+- Python, FastAPI, Pydantic, SQLAlchemy.
+- PostgreSQL 16, SQLite fallback.
+- scikit-learn, CatBoost, pandas, NumPy.
+- SQLAdmin, APScheduler, PyJWT, passlib/bcrypt.
+- Docker and Docker Compose.
+- Kotlin, Jetpack Compose, Retrofit, OkHttp.
+- Nginx, Let's Encrypt, Cloudflare Proxy for the public deployment.
+
+## Project Structure
+
+```text
+src/api/                 FastAPI backend, SQLAdmin, services, database layer
+src/data/                data analysis and cleaning scripts
+src/features/            feature engineering and feature registry
+src/models/              training and tuning scripts
+src/postprocessing/      consistency and reconciliation layer
+src/deployment/          final app model packaging metadata tools
+android_app/             Kotlin + Jetpack Compose Android MVP
+configs/                 tracked model package metadata
+docs/                    deployment, SQLAdmin, and artifact documentation
+reports/                 tracked experiment tables and figures
+```
+
+## Quick Start
+
+Create a local environment:
+
+```bash
+python -m venv .venv
+.venv\Scripts\activate
+pip install -r requirements.txt
+copy .env.example .env
+```
+
+Edit `.env` before using PostgreSQL or external APIs. Do not commit `.env`.
+
+Start PostgreSQL only:
+
+```bash
+docker compose up -d postgres
+python src/api/database/init_db.py
+python src/api/database/seed_db.py
+```
+
+Run the backend locally:
+
+```bash
+uvicorn src.api.main:app --reload
+```
+
+Run the production-like local stack:
+
+```bash
+docker compose up -d --build
+```
+
+Useful checks:
+
+```bash
+curl http://127.0.0.1:8000/health
+curl http://127.0.0.1:8000/db/health
+curl http://127.0.0.1:8000/models
+```
+
+## Android App
+
+The Android MVP lives under `android_app/`. It is a thin client over the FastAPI backend and does not run ML models locally or access the database directly.
+
+Local emulator backend URL:
+
+```text
+http://10.0.2.2:8000/
+```
+
+Production backend URL:
+
+```text
+https://prediction-football.ru/
+```
+
+Build a debug APK for production:
+
+```bash
+cd android_app
+./gradlew :app:assembleDebug -PapiBaseUrl=https://prediction-football.ru/
+```
+
+## Screenshots
+
+No dedicated UI screenshots are currently tracked for the public README. The repository includes experiment figures under `reports/figures/` and a production QR code under `docs/assets/qr_prediction_football.png`.
+
+## Security And Public Repository Notes
+
+- `.env` is ignored and must contain all real secrets locally or on the server.
+- `.env.example` contains placeholders only.
+- API-FOOTBALL credentials must be set through `API_FOOTBALL_API_KEY` in local `.env`.
+- Production model binaries under `models/final_app/` are ignored and must be copied to the deployment host separately.
+- Raw CSV files, local SQLite databases, PostgreSQL backups, logs, Android build outputs, and keystores are ignored.
+- Do not commit personal data, production database dumps, trained model binaries, private deploy keys, Android signing keys, or real service credentials.
+
 ## Current Status
 
 Implemented:
@@ -495,14 +646,14 @@ Production deployment is currently hosted at:
 https://prediction-football.ru/
 ```
 
-The VPS deployment uses Docker Compose for PostgreSQL and the FastAPI backend. The backend container starts Uvicorn on `0.0.0.0:8000`, Docker publishes it on the VPS, and Nginx uses `http://127.0.0.1:8000` as the local upstream.
+The VPS deployment uses Docker Compose for PostgreSQL and the FastAPI backend. Public traffic is proxied by Cloudflare before it reaches the VPS. The backend container starts Uvicorn on `0.0.0.0:8000`, Docker publishes it on the VPS, and Nginx uses `http://127.0.0.1:8000` as the local upstream.
 
 ```text
-HTTPS :443 -> Nginx -> http://127.0.0.1:8000
-HTTP  :80  -> HTTPS redirect
+Client HTTPS -> Cloudflare Proxy -> Nginx :443 -> http://127.0.0.1:8000
+Client HTTP  -> Cloudflare/Nginx HTTPS redirect
 ```
 
-TLS certificates are issued by Let's Encrypt through Certbot with the Nginx plugin for `prediction-football.ru` and `www.prediction-football.ru`. Certbot's system timer handles renewal; verify it with:
+Cloudflare SSL/TLS mode is `Full (strict)`. Origin TLS certificates are issued by Let's Encrypt through Certbot with the Nginx plugin for `prediction-football.ru` and `www.prediction-football.ru`. Certbot's system timer handles renewal; verify it with:
 
 ```bash
 certbot renew --dry-run --no-random-sleep-on-renew
@@ -557,6 +708,8 @@ docker compose ps
 ```
 
 Before changing the VPS worktree or deployment layout, back up the production-only artifacts: `.env`, `models/final_app/`, `data/raw/`, `data/interim/`, and optional `backups/` or `reports/` artifacts.
+
+Because `prediction-football.ru` is proxied by Cloudflare, SSH and other non-HTTP operations must use a direct origin address or a separate DNS-only hostname, not the proxied public hostname.
 
 Unknown FastAPI routes use browser-aware 404 handling: browser requests receive a Russian HTML 404 page, while API clients continue to receive the JSON response `{"detail":"Not Found"}`.
 

@@ -4,6 +4,8 @@ __pycache__/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+.coverage
+htmlcov/
 .venv/
 venv/
 .python_pg_deps/
@@ -22,6 +24,11 @@ data/interim/
 data/processed/
 data/app/
 backups/
+logs/
+*.log
+*.bak
+*.dump
+*.sql
 *.db
 *.sqlite
 *.sqlite3
@@ -32,11 +39,24 @@ backups/
 *.pkl
 *.cbm
 *.onnx
+tmp/
+temp/
+*.tmp
 
 # Local Russian diploma/report figures
 reports/figures/diploma/
 reports/figures/outcome/slide07_outcome_macro_f1_comparison_ru.*
 reports/figures/slide_analogs_comparison_ru.png
+
+# Android local/build artifacts
+android_app/local.properties
+android_app/.gradle/
+android_app/.kotlin/
+android_app/**/build/
+*.apk
+*.aab
+*.jks
+*.keystore
 
 # Notebooks runtime state
 .ipynb_checkpoints/
@@ -46,3 +66,5 @@ reports/figures/slide_analogs_comparison_ru.png
 Thumbs.db
 .idea/
 .vscode/
+*.swp
+*.swo

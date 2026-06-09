@@ -12,7 +12,7 @@ This document gives a short engineering overview of the current project artifact
 - `Dockerfile` builds the FastAPI backend container and starts it with `uvicorn src.api.main:app --host 0.0.0.0 --port 8000`.
 - `.dockerignore` keeps local datasets, model binaries, backups, Android build inputs, and other runtime artifacts out of the backend image context.
 - `docker-compose.yml` defines the production-like local stack with PostgreSQL 16 and the FastAPI backend service. The backend service connects to PostgreSQL through the internal Docker network using the `postgres` hostname.
-- The deployed VPS backend is served at `https://prediction-football.ru/` through Nginx reverse proxy and Let's Encrypt TLS. Nginx redirects HTTP port 80 to HTTPS port 443 and proxies requests to the Dockerized backend on `http://127.0.0.1:8000`.
+- The deployed VPS backend is served at `https://prediction-football.ru/` through Cloudflare Proxy, Nginx reverse proxy, and Let's Encrypt origin TLS. Cloudflare SSL/TLS mode is `Full (strict)`. Nginx proxies requests to the Dockerized backend on `http://127.0.0.1:8000`.
 - `docs/vps_deployment.md` documents the production deployment flow, ignored runtime artifacts, Certbot renewal check, and status policy.
 - `docs/sqladmin_audit.md` documents the current SQLAdmin model-field audit.
 - `docs/assets/qr_prediction_football.png` is a QR code that opens the production landing page at `https://prediction-football.ru/`.
@@ -275,8 +275,8 @@ The production VPS deployment uses the same Docker Compose backend and PostgreSQ
 Public traffic is handled by Nginx:
 
 ```text
-https://prediction-football.ru/ -> Nginx :443 -> http://127.0.0.1:8000
-http://prediction-football.ru/  -> HTTPS redirect
+https://prediction-football.ru/ -> Cloudflare Proxy -> Nginx :443 -> http://127.0.0.1:8000
+http://prediction-football.ru/  -> Cloudflare/Nginx HTTPS redirect
 ```
 
 Let's Encrypt certificates are managed by Certbot with the Nginx plugin. Renewal is checked with:

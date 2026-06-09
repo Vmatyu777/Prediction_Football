@@ -16,14 +16,14 @@ VPS project path:
 /root/Prediction_Football
 ```
 
-The backend runs in Docker Compose with PostgreSQL. Nginx is installed on the VPS and acts as the public reverse proxy:
+The backend runs in Docker Compose with PostgreSQL. Cloudflare Proxy is enabled for the public domain, and Nginx is installed on the VPS as the origin reverse proxy:
 
 ```text
-HTTPS :443 -> Nginx -> http://127.0.0.1:8000
-HTTP  :80  -> HTTPS redirect
+Client HTTPS -> Cloudflare Proxy -> Nginx :443 -> http://127.0.0.1:8000
+Client HTTP  -> Cloudflare/Nginx HTTPS redirect
 ```
 
-TLS certificates are managed by Let's Encrypt and Certbot with the Nginx plugin.
+Cloudflare SSL/TLS mode is `Full (strict)`. Origin TLS certificates are managed by Let's Encrypt and Certbot with the Nginx plugin.
 
 ## Ignored Production Artifacts
 
@@ -44,6 +44,8 @@ Do not commit production secrets, model binaries, CSV datasets, database dumps, 
 ## Standard Deploy
 
 The VPS uses a read-only GitHub deploy key for repository access. Do not use GitHub passwords on the server and do not store GitHub personal access tokens in the project directory.
+
+Because the public domain is proxied by Cloudflare, SSH must use the origin IP address or a separate DNS-only hostname. Do not rely on the proxied public hostname for SSH.
 
 After the VPS is configured as a Git worktree with the deploy key, deploy manually with:
 
