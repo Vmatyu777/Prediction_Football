@@ -9,7 +9,7 @@ from sqladmin import ModelView
 from sqladmin.filters import BooleanFilter, ForeignKeyFilter, StaticValuesFilter
 
 from src.api.admin.auth import ADMIN_SESSION_USER_ID_KEY, is_demo_admin_session
-from src.api.admin.formatters import format_admin_date, format_moscow_datetime
+from src.api.admin.formatters import format_admin_date, format_moscow_datetime, format_outcome_label
 from src.api.database.models import (
     Bookmaker,
     Country,
@@ -73,6 +73,14 @@ def format_prediction_match(prediction: Prediction, _attribute: Any) -> str:
 
 def format_history_prediction(history: UserQueryHistory, _attribute: Any) -> str:
     return format_prediction_label(history.__dict__.get("prediction"))
+
+
+def format_match_result_outcome(match_result: MatchResult, _attribute: Any) -> str:
+    return format_outcome_label(match_result.actual_outcome)
+
+
+def format_prediction_outcome(prediction: Prediction, _attribute: Any) -> str:
+    return format_outcome_label(prediction.predicted_outcome)
 
 
 DEMO_ADMIN_VISIBLE_IDENTITIES = {
@@ -285,10 +293,14 @@ class MatchResultAdmin(SecureModelView, model=MatchResult):
         MatchResult.total_yellow_cards: "Жёлтые карточки",
     }
     column_sortable_list = [MatchResult.id, MatchResult.match_id]
+    column_formatters = {
+        MatchResult.actual_outcome: format_match_result_outcome,
+    }
+    column_formatters_detail = column_formatters
     column_filters = [
         IntegerStaticValuesFilter(
             MatchResult.actual_outcome,
-            values=[(0, "П2"), (1, "Ничья"), (2, "П1")],
+            values=[(0, "A"), (1, "D"), (2, "H")],
             title="Исход",
         )
     ]
@@ -356,13 +368,14 @@ class PredictionAdmin(SecureModelView, model=Prediction):
     column_default_sort = [(Prediction.created_at, True), (Prediction.id, True)]
     column_formatters = {
         Prediction.match: format_prediction_match,
+        Prediction.predicted_outcome: format_prediction_outcome,
     }
     column_formatters_detail = column_formatters
     column_filters = [
         ForeignKeyFilter(Prediction.model_id, Model.name, title="Модель"),
         IntegerStaticValuesFilter(
             Prediction.predicted_outcome,
-            values=[(0, "П2"), (1, "Ничья"), (2, "П1")],
+            values=[(0, "A"), (1, "D"), (2, "H")],
             title="Исход",
         ),
     ]

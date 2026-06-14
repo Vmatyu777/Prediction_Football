@@ -143,7 +143,7 @@
                     Матч #{{ prediction.match_id }}
                   {% endif %}
                 </td>
-                <td>{{ prediction.predicted_outcome }}</td>
+                <td>{{ format_outcome_label(prediction.predicted_outcome) }}</td>
                 <td>{{ format_moscow_datetime(prediction.created_at) }}</td>
               </tr>
               {% else %}

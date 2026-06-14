@@ -6,6 +6,11 @@ from zoneinfo import ZoneInfo
 
 
 MOSCOW_TIMEZONE = ZoneInfo("Europe/Moscow")
+OUTCOME_LABELS = {
+    0: "A",
+    1: "D",
+    2: "H",
+}
 
 
 def format_moscow_datetime(value: datetime | None) -> str:
@@ -23,6 +28,13 @@ def format_admin_date(value: date | None) -> str:
         return ""
 
     return value.strftime("%d.%m.%Y")
+
+
+def format_outcome_label(value: int | None) -> str:
+    if value is None:
+        return ""
+
+    return OUTCOME_LABELS.get(value, str(value))
 
 
 def format_admin_datetime_property(obj: Any, prop: str) -> str:
