@@ -64,6 +64,9 @@ class Season(Base):
     matches: Mapped[list["Match"]] = relationship(back_populates="season")
 
     def __str__(self) -> str:
+        league = self.__dict__.get("league")
+        if league is not None:
+            return f"{league.name} - {self.name}"
         return self.name
 
     __repr__ = __str__

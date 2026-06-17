@@ -422,17 +422,6 @@ class PredictionCharacteristicValueAdmin(SecureModelView, model=PredictionCharac
             PredictionCharacteristic.name,
             title="Характеристика",
         ),
-        StaticValuesFilter(
-            PredictionCharacteristicValue.predicted_value,
-            values=[
-                ("A", "П2"),
-                ("D", "Ничья"),
-                ("H", "П1"),
-                ("Yes", "Да"),
-                ("No", "Нет"),
-            ],
-            title="Значение",
-        ),
     ]
 
 
