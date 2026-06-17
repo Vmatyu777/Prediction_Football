@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -19,8 +20,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.predictionfootball.app.R
@@ -182,34 +185,100 @@ private fun TeamFormMatchRow(formMatch: TeamFormMatchDto) {
         color = MaterialTheme.colorScheme.surfaceVariant,
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
     ) {
-        Row(
+        Column(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Column(modifier = Modifier.weight(1f)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+            ) {
+                TeamFormVenueBadge(displayVenue(formMatch.venue))
                 Text(
-                    text = "${formatDate(formMatch.matchDate)} · ${displayVenue(formMatch.venue)}",
+                    text = formatDate(formMatch.matchDate),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                 )
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+            ) {
                 Text(
                     text = formMatch.opponent,
+                    modifier = Modifier.weight(1f),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurface,
                     fontWeight = FontWeight.Bold,
                     maxLines = 1,
                 )
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = "${formMatch.goalsFor}:${formMatch.goalsAgainst}",
+                        modifier = Modifier.width(42.dp),
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        fontWeight = FontWeight.Black,
+                        textAlign = TextAlign.End,
+                    )
+                    TeamFormOutcomeBadge(formMatch.outcome)
+                }
             }
-            Text(
-                text = "${formMatch.goalsFor}:${formMatch.goalsAgainst}",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurface,
-                fontWeight = FontWeight.Black,
-            )
-            StatusBadge(displayTeamOutcome(formMatch.outcome))
         }
+    }
+}
+
+@Composable
+private fun TeamFormVenueBadge(text: String) {
+    val color = if (text == "В гостях") {
+        Color(0xFF8AB4F8)
+    } else {
+        MaterialTheme.colorScheme.primary
+    }
+    Surface(
+        shape = RoundedCornerShape(999.dp),
+        color = color.copy(alpha = 0.12f),
+        border = BorderStroke(1.dp, color.copy(alpha = 0.45f)),
+    ) {
+        Text(
+            text = text,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+            style = MaterialTheme.typography.labelSmall,
+            color = color,
+            fontWeight = FontWeight.Bold,
+            maxLines = 1,
+        )
+    }
+}
+
+@Composable
+private fun TeamFormOutcomeBadge(outcome: String) {
+    val (text, color) = when (outcome) {
+        "W" -> displayTeamOutcome(outcome) to MaterialTheme.colorScheme.primary
+        "D" -> displayTeamOutcome(outcome) to Color(0xFFFFC857)
+        "L" -> displayTeamOutcome(outcome) to Color(0xFFFF6B6B)
+        else -> outcome to MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    Surface(
+        shape = RoundedCornerShape(999.dp),
+        color = color.copy(alpha = 0.14f),
+        border = BorderStroke(1.dp, color.copy(alpha = 0.55f)),
+    ) {
+        Text(
+            text = text,
+            modifier = Modifier.width(92.dp).padding(vertical = 4.dp),
+            style = MaterialTheme.typography.labelSmall,
+            color = color,
+            fontWeight = FontWeight.Black,
+            textAlign = TextAlign.Center,
+            maxLines = 1,
+        )
     }
 }
 
@@ -388,17 +457,17 @@ private fun OddsValue(label: String, value: Double, modifier: Modifier = Modifie
 
 private fun displayVenue(value: String): String {
     return when (value) {
-        "home" -> "дома"
-        "away" -> "в гостях"
+        "home" -> "Дома"
+        "away" -> "В гостях"
         else -> value
     }
 }
 
 private fun displayTeamOutcome(value: String): String {
     return when (value) {
-        "W" -> "Поб"
-        "D" -> "Н"
-        "L" -> "Пор"
+        "W" -> "Победа"
+        "D" -> "Ничья"
+        "L" -> "Поражение"
         else -> value
     }
 }
