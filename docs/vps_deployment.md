@@ -4,6 +4,18 @@ This document describes the current production deployment flow for the Predictio
 
 ## Production Host
 
+Production VPS provider:
+
+```text
+TimeWeb Cloud
+```
+
+Origin IP address:
+
+```text
+5.42.118.87
+```
+
 Production domain:
 
 ```text
@@ -16,14 +28,14 @@ VPS project path:
 /root/Prediction_Football
 ```
 
-The backend runs in Docker Compose with PostgreSQL. Cloudflare Proxy is enabled for the public domain, and Nginx is installed on the VPS as the origin reverse proxy:
+The backend runs in Docker Compose with PostgreSQL. DNS is managed through Cloudflare, and Nginx is installed on the TimeWeb Cloud VPS as the origin reverse proxy:
 
 ```text
-Client HTTPS -> Cloudflare Proxy -> Nginx :443 -> http://127.0.0.1:8000
-Client HTTP  -> Cloudflare/Nginx HTTPS redirect
+Client HTTPS -> Nginx :443 -> http://127.0.0.1:8000
+Client HTTP  -> Nginx HTTPS redirect
 ```
 
-Cloudflare SSL/TLS mode is `Full (strict)`. Origin TLS certificates are managed by Let's Encrypt and Certbot with the Nginx plugin.
+TLS certificates are managed by Let's Encrypt and Certbot with the Nginx plugin.
 
 ## Ignored Production Artifacts
 
@@ -43,11 +55,11 @@ Do not commit production secrets, model binaries, CSV datasets, database dumps, 
 
 ## Standard Deploy
 
-The VPS uses a read-only GitHub deploy key for repository access. Do not use GitHub passwords on the server and do not store GitHub personal access tokens in the project directory.
+The VPS must have GitHub repository access configured for deployment. Do not use GitHub passwords on the server and do not store GitHub personal access tokens in the project directory.
 
-Because the public domain is proxied by Cloudflare, SSH must use the origin IP address or a separate DNS-only hostname. Do not rely on the proxied public hostname for SSH.
+SSH must use the origin IP address or a separate DNS-only hostname. Do not rely on the public HTTPS domain for SSH.
 
-After the VPS is configured as a Git worktree with the deploy key, deploy manually with:
+After the VPS is configured as a Git worktree, deploy manually with:
 
 ```bash
 cd /root/Prediction_Football

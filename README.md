@@ -12,7 +12,7 @@ Public demo:
 https://prediction-football.ru/
 ```
 
-The public deployment is served through Cloudflare Proxy, Nginx, Docker Compose, FastAPI, and PostgreSQL. Runtime secrets, trained model binaries, raw datasets, local databases, and backups are intentionally not tracked by Git.
+The public deployment is served on TimeWeb Cloud through Nginx, Docker Compose, FastAPI, and PostgreSQL. DNS is managed through Cloudflare. Runtime secrets, trained model binaries, raw datasets, local databases, and backups are intentionally not tracked by Git.
 
 ## Features
 
@@ -34,7 +34,7 @@ The public deployment is served through Cloudflare Proxy, Nginx, Docker Compose,
 ```text
 Android app
     -> HTTPS REST API
-    -> Cloudflare Proxy
+    -> Cloudflare-managed DNS
     -> Nginx reverse proxy
     -> FastAPI backend
     -> PostgreSQL
@@ -59,7 +59,7 @@ Main backend responsibilities:
 - SQLAdmin, APScheduler, PyJWT, passlib/bcrypt.
 - Docker and Docker Compose.
 - Kotlin, Jetpack Compose, Retrofit, OkHttp.
-- Nginx, Let's Encrypt, Cloudflare Proxy for the public deployment.
+- Nginx, Let's Encrypt, and Cloudflare-managed DNS for the public deployment.
 
 ## Project Structure
 
@@ -646,14 +646,14 @@ Production deployment is currently hosted at:
 https://prediction-football.ru/
 ```
 
-The VPS deployment uses Docker Compose for PostgreSQL and the FastAPI backend. Public traffic is proxied by Cloudflare before it reaches the VPS. The backend container starts Uvicorn on `0.0.0.0:8000`, Docker publishes it on the VPS, and Nginx uses `http://127.0.0.1:8000` as the local upstream.
+The VPS deployment uses Docker Compose for PostgreSQL and the FastAPI backend on TimeWeb Cloud. DNS is managed through Cloudflare before traffic reaches the VPS origin. The backend container starts Uvicorn on `0.0.0.0:8000`, Docker publishes it on the VPS, and Nginx uses `http://127.0.0.1:8000` as the local upstream.
 
 ```text
-Client HTTPS -> Cloudflare Proxy -> Nginx :443 -> http://127.0.0.1:8000
-Client HTTP  -> Cloudflare/Nginx HTTPS redirect
+Client HTTPS -> Nginx :443 -> http://127.0.0.1:8000
+Client HTTP  -> Nginx HTTPS redirect
 ```
 
-Cloudflare SSL/TLS mode is `Full (strict)`. Origin TLS certificates are issued by Let's Encrypt through Certbot with the Nginx plugin for `prediction-football.ru` and `www.prediction-football.ru`. Certbot's system timer handles renewal; verify it with:
+TLS certificates are issued by Let's Encrypt through Certbot with the Nginx plugin for `prediction-football.ru` and `www.prediction-football.ru`. Certbot's system timer handles renewal; verify it with:
 
 ```bash
 certbot renew --dry-run --no-random-sleep-on-renew
@@ -697,7 +697,7 @@ Detailed VPS deployment notes are tracked in:
 docs/vps_deployment.md
 ```
 
-After the VPS is configured as a Git worktree with a read-only deploy key, the standard production deployment flow is:
+After the VPS is configured as a Git worktree with repository access, the standard production deployment flow is:
 
 ```bash
 cd /root/Prediction_Football
@@ -709,7 +709,7 @@ docker compose ps
 
 Before changing the VPS worktree or deployment layout, back up the production-only artifacts: `.env`, `models/final_app/`, `data/raw/`, `data/interim/`, and optional `backups/` or `reports/` artifacts.
 
-Because `prediction-football.ru` is proxied by Cloudflare, SSH and other non-HTTP operations must use a direct origin address or a separate DNS-only hostname, not the proxied public hostname.
+SSH and other non-HTTP operations must use a direct origin address or a separate DNS-only hostname, not the public HTTPS hostname.
 
 Unknown FastAPI routes use browser-aware 404 handling: browser requests receive a Russian HTML 404 page, while API clients continue to receive the JSON response `{"detail":"Not Found"}`.
 

@@ -12,7 +12,7 @@ This document gives a short engineering overview of the current project artifact
 - `Dockerfile` builds the FastAPI backend container and starts it with `uvicorn src.api.main:app --host 0.0.0.0 --port 8000`.
 - `.dockerignore` keeps local datasets, model binaries, backups, Android build inputs, and other runtime artifacts out of the backend image context.
 - `docker-compose.yml` defines the production-like local stack with PostgreSQL 16 and the FastAPI backend service. The backend service connects to PostgreSQL through the internal Docker network using the `postgres` hostname.
-- The deployed VPS backend is served at `https://prediction-football.ru/` through Cloudflare Proxy, Nginx reverse proxy, and Let's Encrypt origin TLS. Cloudflare SSL/TLS mode is `Full (strict)`. Nginx proxies requests to the Dockerized backend on `http://127.0.0.1:8000`.
+- The deployed VPS backend is served at `https://prediction-football.ru/` on TimeWeb Cloud through Nginx reverse proxy and Let's Encrypt TLS. DNS is managed through Cloudflare. Nginx proxies requests to the Dockerized backend on `http://127.0.0.1:8000`.
 - `docs/vps_deployment.md` documents the production deployment flow, ignored runtime artifacts, Certbot renewal check, and status policy.
 - `docs/sqladmin_audit.md` documents the current SQLAdmin model-field audit.
 - `docs/assets/qr_prediction_football.png` is a QR code that opens the production landing page at `https://prediction-football.ru/`.
@@ -265,7 +265,7 @@ The backend container uses `Dockerfile`, starts with `uvicorn src.api.main:app -
 
 The `.env` file is local and must not be committed. SQLite remains available as a fallback when `DATABASE_URL` is not set.
 
-The production VPS deployment uses the same Docker Compose backend and PostgreSQL services with ignored runtime artifacts copied manually to the server:
+The production VPS deployment on TimeWeb Cloud uses the same Docker Compose backend and PostgreSQL services with ignored runtime artifacts copied manually to the server:
 
 - `.env` with production secrets and API credentials;
 - `models/final_app/` model binaries;
@@ -275,8 +275,8 @@ The production VPS deployment uses the same Docker Compose backend and PostgreSQ
 Public traffic is handled by Nginx:
 
 ```text
-https://prediction-football.ru/ -> Cloudflare Proxy -> Nginx :443 -> http://127.0.0.1:8000
-http://prediction-football.ru/  -> Cloudflare/Nginx HTTPS redirect
+https://prediction-football.ru/ -> Nginx :443 -> http://127.0.0.1:8000
+http://prediction-football.ru/  -> Nginx HTTPS redirect
 ```
 
 Let's Encrypt certificates are managed by Certbot with the Nginx plugin. Renewal is checked with:
@@ -285,7 +285,7 @@ Let's Encrypt certificates are managed by Certbot with the Nginx plugin. Renewal
 certbot renew --dry-run --no-random-sleep-on-renew
 ```
 
-After the VPS directory is configured as a Git worktree with a read-only deploy key, the standard deployment flow is:
+After the VPS directory is configured as a Git worktree with repository access, the standard deployment flow is:
 
 ```bash
 cd /root/Prediction_Football
