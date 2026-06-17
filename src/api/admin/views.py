@@ -46,6 +46,19 @@ class IntegerStaticValuesFilter(StaticValuesFilter):
         return query.filter(column_obj == int(value))
 
 
+class MatchSeasonFilter(ForeignKeyFilter):
+    async def lookups(self, request, model: Any, run_query) -> list[tuple[str, str]]:
+        rows = await run_query(
+            select(Season.id, League.name, Season.name)
+            .join(League, League.id == Season.league_id)
+            .order_by(Season.name.desc(), League.name.asc())
+        )
+        return [("", "All")] + [
+            (str(season_id), f"{league_name} - {season_name}")
+            for season_id, league_name, season_name in rows
+        ]
+
+
 def format_match_label(match: Match | None) -> str:
     if match is None:
         return "Матч не указан"
@@ -261,7 +274,7 @@ class MatchAdmin(SecureModelView, model=Match):
     column_sortable_list = [Match.id, Match.match_date]
     column_default_sort = [(Match.match_date, True), (Match.id, True)]
     column_filters = [
-        ForeignKeyFilter(Match.season_id, Season.name, title="Сезон"),
+        MatchSeasonFilter(Match.season_id, Season.name, title="Сезон"),
         ForeignKeyFilter(Match.status_id, MatchStatus.name, title="Статус"),
         ForeignKeyFilter(Match.source_id, MatchSource.name, title="Источник"),
         ForeignKeyFilter(Match.external_source_id, ExternalSource.name, title="Внешний источник"),
