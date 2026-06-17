@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -25,8 +26,11 @@ import androidx.compose.ui.unit.dp
 import com.predictionfootball.app.R
 import com.predictionfootball.app.models.LeagueDto
 import com.predictionfootball.app.models.MatchDetailDto
+import com.predictionfootball.app.models.MatchTeamFormDto
 import com.predictionfootball.app.models.OddsDto
 import com.predictionfootball.app.models.SeasonDto
+import com.predictionfootball.app.models.TeamFormDto
+import com.predictionfootball.app.models.TeamFormMatchDto
 import com.predictionfootball.app.models.TeamDto
 import com.predictionfootball.app.ui.displayBookmaker
 import com.predictionfootball.app.ui.displayMatchStatus
@@ -42,6 +46,7 @@ import com.predictionfootball.app.ui.components.SectionTitle
 import com.predictionfootball.app.ui.components.StatusBadge
 import com.predictionfootball.app.ui.components.TeamMark
 import com.predictionfootball.app.ui.theme.PredictionFootballTheme
+import com.predictionfootball.app.viewmodel.MatchDetailsUiData
 import com.predictionfootball.app.viewmodel.MatchDetailsViewModel
 import com.predictionfootball.app.viewmodel.UiState
 
@@ -63,7 +68,7 @@ fun MatchDetailsRoute(
 
 @Composable
 fun MatchDetailsScreen(
-    state: UiState<MatchDetailDto>,
+    state: UiState<MatchDetailsUiData>,
     onBack: () -> Unit,
     onRetry: () -> Unit,
     onGeneratePrediction: (Long) -> Unit,
@@ -81,7 +86,8 @@ fun MatchDetailsScreen(
             UiState.Loading -> LoadingContent(stringResource(R.string.loading_match_details))
             is UiState.Error -> ErrorContent(message = state.message, onRetry = onRetry)
             is UiState.Success -> MatchDetailsContent(
-                match = state.data,
+                match = state.data.match,
+                teamForm = state.data.teamForm,
                 onGeneratePrediction = onGeneratePrediction,
                 modifier = Modifier.verticalScroll(detailsScrollState),
             )
@@ -92,6 +98,7 @@ fun MatchDetailsScreen(
 @Composable
 private fun MatchDetailsContent(
     match: MatchDetailDto,
+    teamForm: MatchTeamFormDto?,
     onGeneratePrediction: (Long) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -113,12 +120,96 @@ private fun MatchDetailsContent(
                 }
             }
         }
+        TeamFormCard(teamForm)
 
         PrimaryActionButton(
             text = stringResource(R.string.generate_prediction),
             onClick = { onGeneratePrediction(match.id) },
             modifier = Modifier.fillMaxWidth(),
         )
+    }
+}
+
+@Composable
+private fun TeamFormCard(teamForm: MatchTeamFormDto?) {
+    if (teamForm == null) {
+        return
+    }
+    InfoCard(modifier = Modifier.fillMaxWidth()) {
+        SectionTitle("Форма команд")
+        Spacer(modifier = Modifier.height(10.dp))
+        BoxWithConstraints {
+            if (maxWidth >= 760.dp) {
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    TeamFormColumn(teamForm.homeTeam, modifier = Modifier.weight(1f))
+                    TeamFormColumn(teamForm.awayTeam, modifier = Modifier.weight(1f))
+                }
+            } else {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    TeamFormColumn(teamForm.homeTeam)
+                    TeamFormColumn(teamForm.awayTeam)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun TeamFormColumn(teamForm: TeamFormDto, modifier: Modifier = Modifier) {
+    Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            text = teamForm.teamName,
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.onSurface,
+            fontWeight = FontWeight.Bold,
+            maxLines = 2,
+        )
+        if (teamForm.matches.isEmpty()) {
+            Text("Недостаточно данных", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        } else {
+            teamForm.matches.forEach { formMatch ->
+                TeamFormMatchRow(formMatch)
+            }
+        }
+    }
+}
+
+@Composable
+private fun TeamFormMatchRow(formMatch: TeamFormMatchDto) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "${formatDate(formMatch.matchDate)} · ${displayVenue(formMatch.venue)}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                )
+                Text(
+                    text = formMatch.opponent,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                )
+            }
+            Text(
+                text = "${formMatch.goalsFor}:${formMatch.goalsAgainst}",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+                fontWeight = FontWeight.Black,
+            )
+            StatusBadge(displayTeamOutcome(formMatch.outcome))
+        }
     }
 }
 
@@ -295,12 +386,29 @@ private fun OddsValue(label: String, value: Double, modifier: Modifier = Modifie
     }
 }
 
+private fun displayVenue(value: String): String {
+    return when (value) {
+        "home" -> "дома"
+        "away" -> "в гостях"
+        else -> value
+    }
+}
+
+private fun displayTeamOutcome(value: String): String {
+    return when (value) {
+        "W" -> "Поб"
+        "D" -> "Н"
+        "L" -> "Пор"
+        else -> value
+    }
+}
+
 @Preview(showBackground = true, widthDp = 900)
 @Composable
 private fun MatchDetailsScreenPreview() {
     PredictionFootballTheme {
         MatchDetailsScreen(
-            state = UiState.Success(sampleMatchDetails()),
+            state = UiState.Success(MatchDetailsUiData(sampleMatchDetails(), sampleTeamForm())),
             onBack = {},
             onRetry = {},
             onGeneratePrediction = {},
@@ -326,6 +434,26 @@ internal fun sampleMatchDetails() = MatchDetailDto(
             drawOdds = 3.45,
             awayWinOdds = 4.10,
             collectedAt = "2025-05-18T12:00:00",
+        ),
+    ),
+)
+
+private fun sampleTeamForm() = MatchTeamFormDto(
+    matchId = 1,
+    homeTeam = TeamFormDto(
+        teamId = 1,
+        teamName = "Arsenal",
+        matches = listOf(
+            TeamFormMatchDto(11, "2025-05-10T17:30:00", "E0", "2024/25", "Liverpool", "home", 2, 1, "W"),
+            TeamFormMatchDto(12, "2025-05-03T17:30:00", "E0", "2024/25", "Man City", "away", 1, 1, "D"),
+        ),
+    ),
+    awayTeam = TeamFormDto(
+        teamId = 2,
+        teamName = "Chelsea",
+        matches = listOf(
+            TeamFormMatchDto(13, "2025-05-09T17:30:00", "E0", "2024/25", "Tottenham", "away", 0, 1, "L"),
+            TeamFormMatchDto(14, "2025-05-02T17:30:00", "E0", "2024/25", "Everton", "home", 3, 0, "W"),
         ),
     ),
 )

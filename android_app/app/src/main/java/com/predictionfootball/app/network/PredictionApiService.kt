@@ -5,6 +5,7 @@ import com.predictionfootball.app.models.AuthUserDto
 import com.predictionfootball.app.models.LoginRequestDto
 import com.predictionfootball.app.models.MatchDetailDto
 import com.predictionfootball.app.models.MatchSummaryDto
+import com.predictionfootball.app.models.MatchTeamFormDto
 import com.predictionfootball.app.models.PredictionDto
 import com.predictionfootball.app.models.PredictionHistoryDto
 import com.predictionfootball.app.models.PredictionHistoryUnreadCountDto
@@ -61,6 +62,11 @@ interface PredictionApiService {
     suspend fun getMatchDetails(
         @Path("match_id") matchId: Long,
     ): MatchDetailDto
+
+    @GET("matches/{match_id}/team-form")
+    suspend fun getMatchTeamForm(
+        @Path("match_id") matchId: Long,
+    ): MatchTeamFormDto
 
     @POST("predict/{match_id}")
     suspend fun generatePrediction(

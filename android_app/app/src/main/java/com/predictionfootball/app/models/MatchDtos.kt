@@ -31,6 +31,33 @@ data class MatchDetailDto(
 )
 
 @Serializable
+data class TeamFormMatchDto(
+    @SerialName("match_id") val matchId: Long,
+    @SerialName("match_date") val matchDate: String,
+    val league: String,
+    val season: String,
+    val opponent: String,
+    val venue: String,
+    @SerialName("goals_for") val goalsFor: Int,
+    @SerialName("goals_against") val goalsAgainst: Int,
+    val outcome: String,
+)
+
+@Serializable
+data class TeamFormDto(
+    @SerialName("team_id") val teamId: Long,
+    @SerialName("team_name") val teamName: String,
+    val matches: List<TeamFormMatchDto> = emptyList(),
+)
+
+@Serializable
+data class MatchTeamFormDto(
+    @SerialName("match_id") val matchId: Long,
+    @SerialName("home_team") val homeTeam: TeamFormDto,
+    @SerialName("away_team") val awayTeam: TeamFormDto,
+)
+
+@Serializable
 data class TeamDto(
     val id: Long,
     val name: String,

@@ -4,6 +4,7 @@ import csv
 from datetime import date, datetime
 from pathlib import Path
 
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from src.api.database.models import League, Match, MatchResult, Odds, Season
@@ -12,8 +13,11 @@ from src.api.schemas import (
     MatchDetailResponse,
     MatchResultResponse,
     MatchSummaryResponse,
+    MatchTeamFormResponse,
     OddsResponse,
     SeasonResponse,
+    TeamFormMatchResponse,
+    TeamFormResponse,
     TeamResponse,
 )
 
@@ -55,6 +59,43 @@ def get_match_detail(db: Session, match_id: int) -> MatchDetailResponse | None:
     return build_match_detail(match)
 
 
+def get_match_team_form(db: Session, match_id: int, *, limit: int = 5) -> MatchTeamFormResponse | None:
+    match = db.query(Match).filter(Match.id == match_id).first()
+    if not match:
+        return None
+    return MatchTeamFormResponse(
+        match_id=match.id,
+        home_team=build_team_form(db, match.home_team_id, match.home_team.name, match.match_date, limit=limit),
+        away_team=build_team_form(db, match.away_team_id, match.away_team.name, match.match_date, limit=limit),
+    )
+
+
+def build_team_form(
+    db: Session,
+    team_id: int,
+    team_name: str,
+    before_date: datetime,
+    *,
+    limit: int,
+) -> TeamFormResponse:
+    matches = (
+        db.query(Match)
+        .join(MatchResult)
+        .filter(
+            Match.match_date < before_date,
+            or_(Match.home_team_id == team_id, Match.away_team_id == team_id),
+        )
+        .order_by(Match.match_date.desc(), Match.id.desc())
+        .limit(limit)
+        .all()
+    )
+    return TeamFormResponse(
+        team_id=team_id,
+        team_name=team_name,
+        matches=[build_team_form_match(match, team_id) for match in matches],
+    )
+
+
 def list_upcoming_matches(db: Session, *, limit: int = 50, offset: int = 0) -> list[MatchSummaryResponse]:
     matches = (
         db.query(Match)
@@ -65,6 +106,32 @@ def list_upcoming_matches(db: Session, *, limit: int = 50, offset: int = 0) -> l
         .all()
     )
     return [build_match_summary(match) for match in matches]
+
+
+def build_team_form_match(match: Match, team_id: int) -> TeamFormMatchResponse:
+    result = match.result
+    is_home = match.home_team_id == team_id
+    goals_for = result.home_goals if is_home else result.away_goals
+    goals_against = result.away_goals if is_home else result.home_goals
+    return TeamFormMatchResponse(
+        match_id=match.id,
+        match_date=match.match_date,
+        league=match.season.league.name,
+        season=match.season.name,
+        opponent=match.away_team.name if is_home else match.home_team.name,
+        venue="home" if is_home else "away",
+        goals_for=goals_for,
+        goals_against=goals_against,
+        outcome=team_outcome(goals_for, goals_against),
+    )
+
+
+def team_outcome(goals_for: int, goals_against: int) -> str:
+    if goals_for > goals_against:
+        return "W"
+    if goals_for < goals_against:
+        return "L"
+    return "D"
 
 
 def list_recent_matches(db: Session, *, limit: int = 50, offset: int = 0) -> list[MatchSummaryResponse]:

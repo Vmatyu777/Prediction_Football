@@ -2,6 +2,7 @@ package com.predictionfootball.app.network
 
 import com.predictionfootball.app.models.MatchDetailDto
 import com.predictionfootball.app.models.MatchSummaryDto
+import com.predictionfootball.app.models.MatchTeamFormDto
 import com.predictionfootball.app.models.PredictionDto
 
 class PredictionRepository(
@@ -14,6 +15,8 @@ class PredictionRepository(
     suspend fun showcaseMatches(): List<MatchSummaryDto> = api.getShowcaseMatches()
 
     suspend fun matchDetails(matchId: Long): MatchDetailDto = api.getMatchDetails(matchId)
+
+    suspend fun matchTeamForm(matchId: Long): MatchTeamFormDto = api.getMatchTeamForm(matchId)
 
     suspend fun generatePrediction(matchId: Long): PredictionDto = api.generatePrediction(matchId)
 }

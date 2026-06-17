@@ -113,6 +113,30 @@ class MatchDetailResponse(BaseModel):
     odds: list[OddsResponse]
 
 
+class TeamFormMatchResponse(BaseModel):
+    match_id: int
+    match_date: datetime
+    league: str
+    season: str
+    opponent: str
+    venue: str
+    goals_for: int
+    goals_against: int
+    outcome: str
+
+
+class TeamFormResponse(BaseModel):
+    team_id: int
+    team_name: str
+    matches: list[TeamFormMatchResponse]
+
+
+class MatchTeamFormResponse(BaseModel):
+    match_id: int
+    home_team: TeamFormResponse
+    away_team: TeamFormResponse
+
+
 class PredictionStoredResponse(PredictionResponse):
     prediction_id: int
     match_id: int

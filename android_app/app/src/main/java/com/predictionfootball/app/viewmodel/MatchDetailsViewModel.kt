@@ -4,6 +4,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.predictionfootball.app.models.MatchDetailDto
+import com.predictionfootball.app.models.MatchTeamFormDto
 import com.predictionfootball.app.network.PredictionRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -16,8 +17,8 @@ class MatchDetailsViewModel(
     private val repository = PredictionRepository()
     private val matchId: Long = checkNotNull(savedStateHandle["matchId"])
 
-    private val _state = MutableStateFlow<UiState<MatchDetailDto>>(UiState.Loading)
-    val state: StateFlow<UiState<MatchDetailDto>> = _state.asStateFlow()
+    private val _state = MutableStateFlow<UiState<MatchDetailsUiData>>(UiState.Loading)
+    val state: StateFlow<UiState<MatchDetailsUiData>> = _state.asStateFlow()
 
     init {
         loadMatch()
@@ -27,7 +28,9 @@ class MatchDetailsViewModel(
         _state.value = UiState.Loading
         viewModelScope.launch {
             runCatching {
-                repository.matchDetails(matchId)
+                val match = repository.matchDetails(matchId)
+                val teamForm = runCatching { repository.matchTeamForm(matchId) }.getOrNull()
+                MatchDetailsUiData(match = match, teamForm = teamForm)
             }.onSuccess { match ->
                 _state.value = UiState.Success(match)
             }.onFailure { error ->
@@ -36,3 +39,8 @@ class MatchDetailsViewModel(
         }
     }
 }
+
+data class MatchDetailsUiData(
+    val match: MatchDetailDto,
+    val teamForm: MatchTeamFormDto?,
+)

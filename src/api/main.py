@@ -21,6 +21,7 @@ from src.api.schemas import (
     LoginRequest,
     MatchDetailResponse,
     MatchSummaryResponse,
+    MatchTeamFormResponse,
     ModelSummary,
     PredictionDetailResponse,
     PredictionHistoryResponse,
@@ -41,6 +42,7 @@ from src.api.services.auth_service import (
 )
 from src.api.services.match_service import (
     get_match_detail,
+    get_match_team_form,
     list_matches,
     list_recent_matches,
     list_sampled_recent_matches,
@@ -412,6 +414,15 @@ def match_detail(match_id: int) -> MatchDetailResponse:
     if match is None:
         raise HTTPException(status_code=404, detail="Match not found")
     return match
+
+
+@app.get("/matches/{match_id}/team-form", response_model=MatchTeamFormResponse)
+def match_team_form(match_id: int) -> MatchTeamFormResponse:
+    with SessionLocal() as db:
+        form = get_match_team_form(db, match_id)
+    if form is None:
+        raise HTTPException(status_code=404, detail="Match not found")
+    return form
 
 
 @app.post("/predict", response_model=PredictionResponse)
