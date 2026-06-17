@@ -6,7 +6,7 @@ Android tablet MVP client for the existing FastAPI backend in this monorepo.
 
 The Android application is a thin client. It must not train models, generate ML features, access PostgreSQL/SQLite directly, use Room, or implement the reconciliation layer locally. Final prediction logic stays in the backend:
 
-- match browsing: `GET /matches`, `GET /matches/{match_id}`, `GET /matches/upcoming`, `GET /matches/recent`, `GET /matches/recent/sampled`, `GET /matches/showcase`;
+- match browsing: `GET /matches`, `GET /matches/{match_id}`, `GET /matches/{match_id}/team-form`, `GET /matches/upcoming`, `GET /matches/recent`, `GET /matches/recent/sampled`, `GET /matches/showcase`;
 - prediction: `POST /predict/{match_id}`;
 - stored prediction details: `GET /predictions/{prediction_id}`;
 - auth: `POST /auth/register`, `POST /auth/login`, `GET /auth/me`;
@@ -82,7 +82,7 @@ Screen goals:
 - Splash: short startup screen that validates a stored token with `GET /auth/me`.
 - Login/Register: FastAPI auth flow with validation, floating in-app error notifications, and show/hide password controls.
 - Match List: Recent/Upcoming/Best Predictions switch plus league and season filters with `All`; the screen opens on Upcoming, caches loaded tabs in `MatchListViewModel`, refreshes stale cached tabs in the background after the client-side TTL expires, and shows the last successful update time for the active tab.
-- Match Details: teams, league, date, status, result if available, latest odds, and compact tablet layout.
+- Match Details: teams, league, date, status, result if available, latest odds, optional team form from local backend data, and compact tablet layout.
 - Prediction Result: final reconciled prediction from `POST /predict/{match_id}` in a dark analytics dashboard style.
 - Profile: current user details in a dashboard-style card, smooth unread-history badge on the History action, stable fallback for non-auth profile loading problems, and logout.
 - History: latest visible row per `prediction_id`, prepared loading before first render, scroll-to-top on open, temporary highlight for newly viewed prediction rows, prediction characteristics, and comparison with factual result when the match is finished.
@@ -145,6 +145,9 @@ interface PredictionApiService {
     @GET("matches/{match_id}")
     suspend fun getMatchDetails(@Path("match_id") matchId: Long): MatchDetailDto
 
+    @GET("matches/{match_id}/team-form")
+    suspend fun getMatchTeamForm(@Path("match_id") matchId: Long): MatchTeamFormDto
+
     @POST("predict/{match_id}")
     suspend fun generatePrediction(@Path("match_id") matchId: Long): PredictionDto
 }
@@ -153,6 +156,8 @@ interface PredictionApiService {
 The backend can return technical values such as `H`, `D`, `A`, `Yes`, `No`, `Finished`, `Market Average`, or match sources such as `historical`, `demo`, and `api`. Android keeps these values unchanged in DTOs and maps them only in the UI layer to Russian user-facing labels. Prediction outcomes use full labels in the result screen; `historical` source labels are hidden, while `demo` and `api` are shown as demo/API match labels.
 
 The Examples tab uses `GET /matches/showcase`. It shows historical matches selected for demonstration because existing model predictions matched the factual result well. It is separate from Recent matches and does not replace aggregate model-quality metrics.
+
+The Match Details team-form block uses `GET /matches/{match_id}/team-form` to display the latest completed local-database matches for the home and away teams. It is reference information only: Android does not call API-FOOTBALL for this block, does not change the database, and keeps the details screen usable when form data is unavailable or empty.
 
 Backend `prediction.created_at` values are stored as UTC. Android treats `created_at` as UTC and displays it in the local timezone of the emulator or physical tablet. The device timezone affects display only.
 

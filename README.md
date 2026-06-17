@@ -22,6 +22,7 @@ The public deployment is served on TimeWeb Cloud through Nginx, Docker Compose, 
 - Corners prediction: `Corners > 9.5`.
 - Yellow cards prediction: `Yellow Cards > 3.5`.
 - Exact score prediction as a secondary display layer.
+- Team form reference block based on recent completed local-database matches.
 - Priority-based consistency and reconciliation layer.
 - REST API with FastAPI.
 - PostgreSQL persistence with SQLite local fallback.
@@ -579,6 +580,7 @@ Available endpoints:
 - `POST /users/me/history/mark-viewed`;
 - `GET /matches`;
 - `GET /matches/{match_id}`;
+- `GET /matches/{match_id}/team-form`;
 - `GET /matches/upcoming`;
 - `GET /matches/recent`;
 - `GET /matches/recent/sampled`;
@@ -684,6 +686,8 @@ https://prediction-football.ru/admin/login
 ```
 
 SQLAdmin is still backend-only administration. It does not replace Android JWT authentication and is not used by the mobile client.
+
+In the Matches view, the season filter displays values as `League - season` to distinguish same-named seasons across leagues. In `PredictionCharacteristicValueAdmin`, the broad value filter was removed; the view keeps the `Характеристика` filter only.
 
 The current SQLAdmin field audit is tracked in:
 
@@ -853,7 +857,7 @@ Implemented screens:
 
 The match list opens on the Upcoming tab by default, includes league and season filters with an `All` option, caches tab data inside `MatchListViewModel`, and refreshes stale cached tab data in the background after the client-side TTL expires. The UI shows the last successful update time for the active tab without adding a manual refresh action. Actual future matches and demo matches are visually separated so seeded demo fixtures do not mix with API-loaded upcoming matches. The history screen shows unique predictions without visual duplicates: rows are sorted by `query_date` descending and then grouped by `prediction_id`, so the latest user action is shown for each stored prediction. Before opening History, Profile refreshes the unread count; after History loads successfully, Android calls `POST /users/me/history/mark-viewed`, resets the badge count, and keeps highlight IDs only long enough for the visible 5-second row highlight. For completed matches, Android compares prediction characteristics with the factual result.
 
-The Android UI redesign also polished Match Details into a compact tablet layout, Prediction Result into a dark analytics dashboard, History into readable market cards with Russian statuses, and Profile into a centered dashboard-style user card. Logout navigation resets to Login through a known start destination with `launchSingleTop` to avoid empty protected routes. Profile also has a stable fallback card for non-auth profile loading problems, such as a malformed or unavailable `/auth/me` response; logout and session-expired flows do not show this fallback. The redesign did not change ML models or prediction business logic.
+The Android UI redesign also polished Match Details into a compact tablet layout with a non-critical "Форма команд" block, Prediction Result into a dark analytics dashboard, History into readable market cards with Russian statuses, and Profile into a centered dashboard-style user card. The team-form block uses `GET /matches/{match_id}/team-form`; if the form data is unavailable or empty, the screen remains usable and does not call API-FOOTBALL directly. Logout navigation resets to Login through a known start destination with `launchSingleTop` to avoid empty protected routes. Profile also has a stable fallback card for non-auth profile loading problems, such as a malformed or unavailable `/auth/me` response; logout and session-expired flows do not show this fallback. The redesign did not change ML models or prediction business logic.
 
 The Android UI maps technical backend values such as `H / D / A`, `Yes / No`, match statuses, and bookmaker/source names to Russian user-facing labels. Match outcome probabilities are shown with full labels (`Home win`, `Draw`, `Away win` equivalents in Russian), not short betting notation. Historical match sources are not shown in the UI; demo and API sources are shown as user-facing labels. Team names, league names, and country names are kept as returned by the backend.
 

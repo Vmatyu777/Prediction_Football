@@ -6,7 +6,7 @@ This document gives a short engineering overview of the current project artifact
 
 - `docs/final_app_models.md` describes the final local model package for future backend/API usage: final tasks, model types, feature sets, local model paths, thresholds, post-processing, and final test metrics.
 - `configs/final_app_models.json` stores machine-readable backend metadata for final model paths, feature-set names, thresholds, reconciliation priority order, and exact-score clipping range.
-- `src/api/` contains the FastAPI backend for the Android mobile application, including auth endpoints, match browsing, prediction, persisted prediction details, and user prediction history.
+- `src/api/` contains the FastAPI backend for the Android mobile application, including auth endpoints, match browsing, read-only team form, prediction, persisted prediction details, and user prediction history.
 - `src/api/admin/` contains the SQLAdmin administration panel mounted at `/admin`, including session-based admin authentication, dashboard, model views, and localized template overrides.
 - `src/api/database/` contains the SQLAlchemy physical database layer for backend persistence. PostgreSQL 16 through Docker Compose is the primary production-like mode; SQLite is retained as a local fallback when `DATABASE_URL` is not set.
 - `Dockerfile` builds the FastAPI backend container and starts it with `uvicorn src.api.main:app --host 0.0.0.0 --port 8000`.
@@ -45,7 +45,7 @@ This document gives a short engineering overview of the current project artifact
 - `src/api/admin/setup.py` attaches SQLAdmin to the FastAPI app at `/admin`, registers the dashboard and model views, and points SQLAdmin to the project-local admin templates.
 - `src/api/admin/auth.py` implements SQLAdmin session-based authentication using the existing `authenticate_user()` helper while requiring the `admin` role.
 - `src/api/admin/dashboard.py` implements the localized dashboard with user, match, prediction, and user-history counters plus lightweight CSS charts.
-- `src/api/admin/views.py` defines SQLAdmin `ModelView` classes for Users, football data, predictions, models, metrics, and reference tables. Users allow role editing only; password hashes are hidden; dangerous create/edit/delete operations are disabled for predictions, history, matches, and reference data; admin role edits are protected against self-demotion and removal of the last administrator.
+- `src/api/admin/views.py` defines SQLAdmin `ModelView` classes for Users, football data, predictions, models, metrics, and reference tables. Users allow role editing only; password hashes are hidden; dangerous create/edit/delete operations are disabled for predictions, history, matches, and reference data; admin role edits are protected against self-demotion and removal of the last administrator. The Matches season filter displays values as `League - season`, and the prediction-characteristic-values view keeps only the characteristic filter.
 - `src/api/admin/templates/` contains localized SQLAdmin template overrides for login, layout, list, details, edit, and dashboard pages. These overrides translate user-facing admin UI text and keep SQLAdmin core files unchanged.
 - `src/api/config.py` stores backend paths and API metadata.
 - `src/api/schemas.py` stores Pydantic request and response schemas, including auth validation rules for username, email, and password.
@@ -70,7 +70,7 @@ This document gives a short engineering overview of the current project artifact
 - `src/api/database/restore_postgres.py` previews or executes PostgreSQL restore from a selected plain SQL backup with `psql`; restore is dry-run by default unless `--execute` is passed.
 - `src/analysis/prediction_quality_analysis.py` computes historical prediction-quality reports without storing prediction rows in the application database.
 - `src/api/services/feature_service.py` builds runtime model feature vectors from SQL database data using training-compatible feature names, ordering, ELO logic, odds transforms, and rolling-history calculations.
-- `src/api/services/match_service.py` contains SQLAlchemy query helpers for match listing, match details, upcoming matches, recent matches, sampled recent matches, and showcase examples.
+- `src/api/services/match_service.py` contains SQLAlchemy query helpers for match listing, match details, read-only team form, upcoming matches, recent matches, sampled recent matches, and showcase examples.
 - `src/api/services/api_football_client.py` contains a small API-FOOTBALL HTTP client with fixture, statistics, and odds request methods. It does not write to the database.
 - `src/api/services/external_match_sync_service.py` contains the conservative API-FOOTBALL fixture matching and upsert logic. It uses exact team matching plus in-code aliases and does not create new teams or leagues automatically.
 - `src/api/services/external_odds_sync_service.py` contains API-FOOTBALL odds parsing and upsert logic for complete 1X2 plus Over/Under 2.5 payloads. API odds are averaged across complete bookmaker sets and saved under the existing `Market Average` bookmaker; API bookmaker rows are not created.
@@ -81,12 +81,12 @@ This document gives a short engineering overview of the current project artifact
 
 - `android_app/` contains the Android tablet MVP application.
 - The app is a thin client over FastAPI: it does not generate ML features, does not access the database directly, does not run trained models locally, and does not implement reconciliation locally.
-- Implemented screens: splash, login, registration, match list, match details, prediction result, profile, and prediction history.
+- Implemented screens: splash, login, registration, match list, match details with team form, prediction result, profile, and prediction history.
 - The app stores JWT tokens in `SharedPreferences`, attaches them as bearer tokens through OkHttp, validates them on splash with `GET /auth/me`, and clears them on logout or `401`/`403`. Logout navigation resets to Login through a known start destination with `launchSingleTop`.
 - The match list supports league and season filters. The prediction history screen displays the latest user query per `prediction_id`, compares completed-match predictions with factual results, hides internal database IDs from users, loads before first render to avoid visible row insertion, scrolls to the top on open, and highlights newly viewed prediction rows for 5 seconds by `prediction_id`.
 - The UI uses Russian user-facing labels through display mapping helpers while keeping team names, league names, and country names unchanged.
 - The app remains tablet-first, with basic phone support improved for the MVP. Login and Register preserve non-password input in `AuthViewModel`, keep password values local to the Compose screen, are scrollable, and use keyboard-safe IME padding. Match Details, Prediction Result, and Profile are scrollable. Prediction Result uses one column on narrow screens and two columns on wider tablet screens. Match List tabs and filters are horizontally scrollable on narrow screens.
-- The Android UI redesign is completed for the current MVP. It uses a dark sports analytics theme with near-black backgrounds, dark cards, and lime accents. Login/Register use floating in-app notifications and show/hide password controls. Match List opens on Upcoming, caches loaded tabs in `MatchListViewModel`, refreshes stale cached tabs in the background after the client-side TTL expires, shows the active tab's last successful update time, and visually separates actual upcoming matches from seeded demo matches. Match Details uses a compact tablet layout; Prediction Result and History use dark analytics cards; Profile uses a centered dashboard-style user card with a smooth unread-history badge and a fallback card for non-auth profile loading problems.
+- The Android UI redesign is completed for the current MVP. It uses a dark sports analytics theme with near-black backgrounds, dark cards, and lime accents. Login/Register use floating in-app notifications and show/hide password controls. Match List opens on Upcoming, caches loaded tabs in `MatchListViewModel`, refreshes stale cached tabs in the background after the client-side TTL expires, shows the active tab's last successful update time, and visually separates actual upcoming matches from seeded demo matches. Match Details uses a compact tablet layout and shows a non-critical "Форма команд" block from local backend data when available; Prediction Result and History use dark analytics cards; Profile uses a centered dashboard-style user card with a smooth unread-history badge and a fallback card for non-auth profile loading problems.
 - Full `WindowSizeClass` handling, tablet master-detail navigation, and landscape-specific layouts are not implemented yet.
 - Email verification, password reset, push notifications, team/league logos, standings, H2H, calendar, and news screens are not implemented.
 - Backend `prediction.created_at` values are stored as UTC and displayed by Android in the local timezone of the emulator or tablet.
@@ -354,6 +354,7 @@ Endpoints:
 - `POST /predict` returns a unified prediction response for sample/manual JSON input.
 - `GET /matches` returns paginated real matches from the configured SQL database with optional league, season, and date filters.
 - `GET /matches/{match_id}` returns match details with teams, result, and odds.
+- `GET /matches/{match_id}/team-form` returns the latest completed local-database matches for the selected home and away teams. It is read-only, does not change the database schema or data, and does not call API-FOOTBALL at runtime.
 - `GET /matches/upcoming` returns matches without result.
 - `GET /matches/recent` returns recent finished matches.
 - `GET /matches/recent/sampled` returns a balanced recent sample across league-season pairs for the Android filters.

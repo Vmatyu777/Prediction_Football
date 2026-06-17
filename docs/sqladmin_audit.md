@@ -53,6 +53,7 @@ Detail view fields: `id, match_date, season, home_team, away_team, status, sourc
 Create/Edit form fields: `none`
 Search fields: `external_match_id`
 Filters: `Сезон, Статус, Источник, Внешний источник`
+Filter note: the `Сезон` filter displays season options as `League - season` to distinguish same-named seasons across leagues.
 
 Database columns not explicitly shown in list/detail fields: `season_id, home_team_id, away_team_id, status_id, source_id, external_source_id`
 Columns intentionally omitted from compact list view: `season_id, home_team_id, away_team_id, status_id, source_id, external_source_id, last_synced_at`
@@ -124,7 +125,7 @@ List view fields: `prediction_id, characteristic_id, predicted_value, probabilit
 Detail view fields: `prediction_id, characteristic_id, predicted_value, probability`
 Create/Edit form fields: `none`
 Search fields: `none`
-Filters: `Характеристика, Значение`
+Filters: `Характеристика`
 
 All database columns are represented directly or through configured list/detail relationship fields.
 The compact list view includes all database columns.

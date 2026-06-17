@@ -136,7 +136,7 @@ Current design decision: exact score must not drive the final system because it 
 ## Backend API Skeleton
 
 - Initial FastAPI backend code lives under `src/api/`.
-- Current endpoints: `GET /`, `GET /health`, `GET /db/health`, `GET /models`, `POST /auth/register`, `POST /auth/login`, `GET /auth/me`, `GET /users/me/history`, `GET /users/me/history/unread-count`, `POST /users/me/history/mark-viewed`, `GET /matches`, `GET /matches/{match_id}`, `GET /matches/upcoming`, `GET /matches/recent`, `GET /matches/recent/sampled`, `GET /matches/showcase`, `POST /predict`, `POST /predict/{match_id}`, `GET /predictions/{prediction_id}`.
+- Current endpoints: `GET /`, `GET /health`, `GET /db/health`, `GET /models`, `POST /auth/register`, `POST /auth/login`, `GET /auth/me`, `GET /users/me/history`, `GET /users/me/history/unread-count`, `POST /users/me/history/mark-viewed`, `GET /matches`, `GET /matches/{match_id}`, `GET /matches/{match_id}/team-form`, `GET /matches/upcoming`, `GET /matches/recent`, `GET /matches/recent/sampled`, `GET /matches/showcase`, `POST /predict`, `POST /predict/{match_id}`, `GET /predictions/{prediction_id}`.
 - `GET /` is a production landing page rendered with FastAPI `HTMLResponse`; unknown routes must continue to return 404.
 - Run locally with `uvicorn src.api.main:app --reload`.
 - Run for Android emulator/tablet testing with `uvicorn src.api.main:app --host 0.0.0.0 --port 8000 --reload`.
@@ -154,6 +154,7 @@ Current design decision: exact score must not drive the final system because it 
 - Backend/auth Python dependencies are tracked in `requirements.txt`.
 - User credential validation rules are: username must contain only Latin letters, digits, `_`, and `-`; email must be ASCII email format; password must be at least 8 printable ASCII characters with at least one Latin letter and one digit.
 - API-FOOTBALL / API-SPORTS is the selected single external sports data source for future fixtures, match results, match statistics, and odds.
+- `GET /matches/{match_id}/team-form` is a read-only helper endpoint. It returns the latest completed matches for the selected home and away teams from the local SQL database and does not call API-FOOTBALL at runtime.
 - API-FOOTBALL credentials must be stored only in local `.env` as `API_FOOTBALL_API_KEY`; `.env.example` must contain only an empty template value.
 - API-FOOTBALL fixtures sync is implemented as a manual CLI script in `src/api/database/sync_api_football.py`.
 - Fixtures sync stores only scheduled, postponed, and cancelled API fixtures. Finished fixtures are skipped until result/statistics sync is implemented.
@@ -175,6 +176,7 @@ Current design decision: exact score must not drive the final system because it 
 - SQLAdmin must display UTC-naive backend `DateTime` values in `Europe/Moscow` using `DD.MM.YYYY HH:mm МСК`; this is display-only and must not change stored database values or Android API datetime contracts. Date-only fields must stay date-only.
 - SQLAdmin Users view must never display `password_hash`. Users may be viewed, searched, filtered, and have only their role edited.
 - User deletion is not allowed in SQLAdmin.
+- SQLAdmin Matches season filters display seasons as `League - season` to avoid duplicate-looking season names across leagues. `PredictionCharacteristicValueAdmin` keeps the `Характеристика` filter and intentionally does not expose a broad mixed-value filter.
 - SQLAdmin demo sessions must not create, edit, delete, export, run custom actions, or change user roles.
 - SQLAdmin must not allow dangerous CRUD for predictions, user query history, matches, football domain data, model metadata, metrics, odds, or reference tables unless explicitly requested and carefully reviewed.
 - SQLAdmin must not allow an admin to demote their own role or remove the last remaining admin user.
@@ -244,7 +246,7 @@ Current design decision: exact score must not drive the final system because it 
 - Backend `prediction.created_at` is stored as UTC; Android displays it in the local timezone of the emulator/tablet.
 - The Android UI remains tablet-first, with basic phone support improved for the MVP.
 - Login and Register preserve non-password input through `AuthViewModel`, keep password values local to the Compose screen, are vertically scrollable, and use keyboard-safe IME padding.
-- Match Details uses a compact tablet layout; Prediction Result uses a dark analytics dashboard layout; History uses readable market cards with Russian statuses.
+- Match Details uses a compact tablet layout and includes a non-critical team-form block with recent completed matches for both teams; Prediction Result uses a dark analytics dashboard layout; History uses readable market cards with Russian statuses.
 - Match Details, Prediction Result, and Profile are vertically scrollable where needed.
 - Prediction Result uses one column on narrow screens and two columns on wider tablet screens.
 - Match List tabs and filters are horizontally scrollable on narrow screens.
