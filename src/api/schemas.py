@@ -138,7 +138,7 @@ class PredictionDetailResponse(BaseModel):
 
 
 class RegisterRequest(BaseModel):
-    username: str = Field(max_length=50)
+    username: str = Field(min_length=3, max_length=50)
     email: str = Field(min_length=5, max_length=100)
     password: str = Field(max_length=128)
 
@@ -148,6 +148,8 @@ class RegisterRequest(BaseModel):
         normalized = value.strip()
         if not normalized:
             raise ValueError("Username is required")
+        if len(normalized) < 3:
+            raise ValueError("Username must contain at least 3 characters")
         if not USERNAME_PATTERN.match(normalized):
             raise ValueError("Username may contain only Latin letters, digits, underscore, and hyphen")
         return normalized

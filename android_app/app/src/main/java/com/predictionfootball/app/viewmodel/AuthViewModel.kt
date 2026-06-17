@@ -15,6 +15,7 @@ import retrofit2.HttpException
 import java.util.Locale
 
 private const val SESSION_EXPIRED_MESSAGE = "Сессия истекла. Выполните вход повторно."
+private const val MIN_USERNAME_LENGTH = 3
 private const val MIN_PASSWORD_LENGTH = 8
 private const val MAX_USERNAME_LENGTH = 50
 private const val MIN_EMAIL_LENGTH = 5
@@ -22,7 +23,7 @@ private const val MAX_EMAIL_LENGTH = 100
 private const val MAX_PASSWORD_LENGTH = 128
 private const val HISTORY_INITIAL_LOADING_MIN_MILLIS = 400L
 private const val LOGIN_RULE_MESSAGE = "Логин может содержать только латинские буквы, цифры, _ и -"
-private const val LOGIN_LENGTH_MESSAGE = "Логин должен быть не длиннее 50 символов"
+private const val LOGIN_LENGTH_MESSAGE = "Логин должен содержать от 3 до 50 символов"
 private const val EMAIL_RULE_MESSAGE = "Введите корректную эл. почту"
 private const val EMAIL_LENGTH_MESSAGE = "Эл. почта должна содержать от 5 до 100 символов"
 private const val PASSWORD_RULE_MESSAGE = "Пароль должен содержать минимум 8 символов, латинскую букву и цифру"
@@ -131,7 +132,7 @@ class AuthViewModel : ViewModel() {
                 _formState.value = AuthFormState()
                 onSuccess()
             }.onFailure { error ->
-                _formState.value = AuthFormState(errorMessage = error.toAuthErrorMessage())
+                _formState.value = AuthFormState(errorMessage = error.toAuthErrorMessage(isRegistration = false))
             }
         }
     }
@@ -152,7 +153,7 @@ class AuthViewModel : ViewModel() {
                 _formState.value = AuthFormState()
                 onSuccess()
             }.onFailure { error ->
-                _formState.value = AuthFormState(errorMessage = error.toAuthErrorMessage())
+                _formState.value = AuthFormState(errorMessage = error.toAuthErrorMessage(isRegistration = true))
             }
         }
     }
@@ -319,6 +320,7 @@ class AuthViewModel : ViewModel() {
         val normalizedEmail = normalizeEmail(email)
         return when {
             username.isBlank() -> "Введите логин"
+            username.trim().length < MIN_USERNAME_LENGTH -> LOGIN_LENGTH_MESSAGE
             username.trim().length > MAX_USERNAME_LENGTH -> LOGIN_LENGTH_MESSAGE
             !username.trim().matches(Regex("^[A-Za-z0-9_-]+$")) -> LOGIN_RULE_MESSAGE
             normalizedEmail.isBlank() -> "Введите эл. почту"
@@ -348,7 +350,7 @@ class AuthViewModel : ViewModel() {
         return value.trim().lowercase(Locale.ROOT)
     }
 
-    private fun Throwable.toAuthErrorMessage(): String {
+    private fun Throwable.toAuthErrorMessage(isRegistration: Boolean): String {
         if (this !is HttpException) {
             return message ?: "Не удалось выполнить запрос"
         }
@@ -364,7 +366,8 @@ class AuthViewModel : ViewModel() {
             "password must contain" in body || "string should have at least 8" in body -> PASSWORD_RULE_MESSAGE
             "username may contain" in body -> LOGIN_RULE_MESSAGE
             code() == 401 -> "Неверный логин или пароль"
-            code() == 422 -> "Проверьте данные регистрации"
+            code() == 422 && isRegistration -> "Проверьте данные регистрации"
+            code() == 422 -> "Проверьте логин и пароль"
             else -> "Не удалось выполнить запрос"
         }
     }
